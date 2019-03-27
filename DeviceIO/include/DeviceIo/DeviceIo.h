@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <string>
 
-#include "BtsrcParameter.h"
+#include <DeviceIo/RkBtBase.h>
 
 namespace DeviceIOFramework {
 
@@ -76,18 +76,19 @@ enum class LedState {
 /* bt control cmd */
 enum class BtControl {
     BT_OPEN,
+    BT_CLOSE,
 
     BT_SOURCE_OPEN,
     BT_SOURCE_SCAN,
     BT_SOURCE_CONNECT,
-    BT_SOURCE_DISCONNECT,
-    BT_SOURCE_STATUS = 5,
+    BT_SOURCE_DISCONNECT, //5
+    BT_SOURCE_STATUS,
     BT_SOURCE_REMOVE,
 	BT_SOURCE_CLOSE,
 	BT_SOURCE_IS_OPENED,
 
-    BT_SINK_OPEN,
-    BT_SINK_CLOSE = 10,
+    BT_SINK_OPEN, //10
+    BT_SINK_CLOSE,
 	BT_SINK_RECONNECT,
     BT_SINK_IS_OPENED,
 
@@ -98,18 +99,20 @@ enum class BtControl {
     BT_PAUSE_PLAY,
     BT_RESUME_PLAY,
     BT_VOLUME_UP,
-    BT_VOLUME_DOWN,
-    BT_AVRCP_FWD = 20,
+    BT_VOLUME_DOWN, //20
+    BT_AVRCP_FWD,
     BT_AVRCP_BWD,
     BT_AVRCP_STOP,
     BT_HFP_RECORD,
 
-    BT_BLE_OPEN,
-    BT_BLE_COLSE = 25,
+    BT_BLE_OPEN, //25
+    BT_BLE_COLSE,
     BT_BLE_IS_OPENED,
 	BT_BLE_WRITE,
 	BT_BLE_READ,
 	BT_VISIBILITY,
+	BT_GATT_MTU,
+	BT_BLE_DISCONNECT,
 
     GET_BT_MAC,
 };
@@ -301,26 +304,21 @@ enum class BT_Device_Class {
 extern "C" {
 #endif
 struct wifi_config {
-	char ssid[60];
+	char ssid[512];
 	int ssid_len;
-	char psk[60];
+	char psk[512];
 	int psk_len;
-	char key_mgmt[22];
+	char key_mgmt[512];
 	int key_len;
+	bool hide;
 	void (*wifi_status_callback)(int status, int reason);
-};
-
-struct ble_config {
-	char uuid[38];
-	char data[134];
-	int len;
 };
 
 #ifdef __cplusplus
 }
 #endif
 
-//void bt_adv_set(Bt_Content_t *p_bt_content);
+//void bt_adv_set(RkBtContent *p_bt_content);
 
 class INetLinkWrapperCallback {
 public:
@@ -552,14 +550,6 @@ public:
     void initBTForHis();
 
     NetLinkNetworkStatus getNetworkStatus() const;
-
-    /**
-     * @brief Automatically connect to the AudioSink device,
-     *        which has the largest rssi value.
-     * @paremeter address:target device address; msec:scanning takes time.
-     * @return true if started succeed.
-     */
-    bool a2dpSourceAutoConnect(char *address, unsigned short msec);
 
     /**
      * @brief system ctl

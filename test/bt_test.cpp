@@ -35,8 +35,8 @@ static RkBtContent bt_content;
 void bt_test_init_open(void *data)
 {
 	printf("---------------BT INIT OPEN----------------\n");
-	bt_content.bt_name = "KUGOU_AUDIO";
-	bt_content.ble_content.ble_name = NULL; // "KUGOU_BLE_888";
+	bt_content.bt_name = "ROCKCHIP_AUDIO";
+	bt_content.ble_content.ble_name = "ROCKCHIP_AUDIO BLE";
 	bt_content.ble_content.server_uuid.uuid = BLE_UUID_SERVICE;
 	bt_content.ble_content.server_uuid.len = UUID_128;
 	bt_content.ble_content.chr_uuid[0].uuid = BLE_UUID_WIFI_CHAR;
@@ -78,6 +78,8 @@ int bt_sink_callback(RK_BT_SINK_STATE state)
 			printf("++++++++++++ BT SINK EVENT: disconnected ++++++++++\n");
 			break;
 	}
+
+    return 0;
 }
 
 void bt_test_sink_open(void *data)
@@ -217,7 +219,7 @@ void bt_test_source_connect_status(void *data)
 	RK_BT_SOURCE_STATUS status;
 	char name[256], address[256];
 
-	rk_bt_source_get_status(&status, name, address);
+	rk_bt_source_get_status(&status, name, 256, address, 256);
 	if (status == BT_SOURCE_STATUS_CONNECTED) {
 		printf("++++++++++++ BT SOURCE STATUS: connected ++++++++++++\n");
 		printf("\t name:%s, address:%s\n", name, address);
@@ -236,7 +238,7 @@ static void ble_status_callback_test(RK_BLE_STATE state)
 		case RK_BLE_STATE_IDLE:
 			printf("+++++ RK_BLE_STATE_IDLE +++++\n");
 			break;
-		case RK_BLE_STATE_SUCCESS:
+		case RK_BLE_STATE_CONNECT:
 			printf("+++++ RK_BLE_STATE_CONNECT +++++\n");
 			break;
 		case RK_BLE_STATE_DISCONNECT:
@@ -297,7 +299,7 @@ void bt_test_ble_get_status(void *data)
 		case RK_BLE_STATE_IDLE:
 			printf("RK_BLE_STATE_IDLE.\n");
 			break;
-		case RK_BLE_STATE_SUCCESS:
+		case RK_BLE_STATE_CONNECT:
 			printf("RK_BLE_STATE_CONNECT.\n");
 			break;
 		case RK_BLE_STATE_DISCONNECT:

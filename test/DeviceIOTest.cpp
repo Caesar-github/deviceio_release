@@ -16,18 +16,17 @@
 
 #include <string.h>
 #include <pthread.h>
-#include <sys/select.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <math.h>
+#include <iostream>
+#include <sys/select.h>
 #include <linux/input.h>
 #include <linux/rtc.h>
-#include <math.h>
-#include<iostream>
+#include <DeviceIo/Rk_system.h>
 
-#include <DeviceIo/DeviceIo.h>
 #include "bt_test.h"
-
-using DeviceIOFramework::DeviceIo;
+#include "rk_ble_app.h"
 
 typedef struct {
 	char *cmd;
@@ -78,12 +77,18 @@ int main(int argc, char *argv[])
 {
 	int i, item_cnt;
 	char szBuf[64] = {0};
+	char version[64] = {0};
 
-	std::cout << "version:" << DeviceIo::getInstance()->getVersion() << std::endl;
+	RK_read_version(version, 64);
+	std::cout << "version:" << version << std::endl;
 	item_cnt = sizeof(process_command_table) / sizeof(test_command_t);
 
+	if (argc > 1 && !strncmp(argv[1], "blewifi", 5)) {
+		rk_ble_wifi_init();
+	}
+
 	while(true) {
-		if (argc > 1 && !strncmp(argv[1], "debug", 5)) {
+		if (argc > 1 && !strncmp(argv[1], "bluetooth", 5)) {
 			memset(szBuf, 0, sizeof(szBuf));
 			show_help();
 			if(!std::cin.getline(szBuf, 64)) {

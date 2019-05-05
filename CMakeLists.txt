@@ -9,4 +9,4 @@ add_definitions("-Wall -g")
 
 add_subdirectory("librkmediaplayer")
 add_subdirectory("DeviceIO")
-#add_subdirectory("test")
+add_subdirectory("test")

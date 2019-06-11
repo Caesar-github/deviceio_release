@@ -9,6 +9,7 @@
 #include <DeviceIo/RkBtSource.h>
 #include <DeviceIo/RkBle.h>
 #include <DeviceIo/RkBtSpp.h>
+#include <DeviceIo/RkBtHfp.h>
 
 #include "bt_test.h"
 
@@ -32,9 +33,9 @@ static RkBtContent bt_content;
  * The Bluetooth basic service is turned on and the function
  * must be called before using the Bluetooth function.
  */
-void bt_test_init_open(void *data)
+void bt_test_bluetooth_init(void *data)
 {
-	printf("---------------BT INIT OPEN----------------\n");
+	printf("--------------- BT BLUETOOTH INIT ----------------\n");
 	bt_content.bt_name = "ROCKCHIP_AUDIO";
 	bt_content.ble_content.ble_name = "ROCKCHIP_AUDIO BLE";
 	bt_content.ble_content.server_uuid.uuid = BLE_UUID_SERVICE;
@@ -51,6 +52,27 @@ void bt_test_init_open(void *data)
 	bt_content.ble_content.cb_ble_request_data = bt_test_ble_request_data_callback;
 
 	rk_bt_init(&bt_content);
+}
+
+void bt_test_bluetooth_deinit(void *data)
+{
+	printf("--------------- BT BLUETOOTH DEINIT ----------------\n");
+	rk_bt_deinit();
+}
+
+void bt_test_set_class(void *data)
+{
+	rk_bt_set_class(0x240404);
+}
+
+void bt_test_enable_reconnect(void *data)
+{
+	rk_bt_enable_reconnect(1);
+}
+
+void bt_test_disable_reconnect(void *data)
+{
+	rk_bt_enable_reconnect(0);
 }
 
 /******************************************/
@@ -79,11 +101,17 @@ int bt_sink_callback(RK_BT_SINK_STATE state)
 			break;
 	}
 
-    return 0;
+	return 0;
+}
+
+void bt_sink_volume_callback(int volume)
+{
+	printf("++++++++ bt sink volume change, volume: %d ++++++++\n", volume);
 }
 
 void bt_test_sink_open(void *data)
 {
+	rk_bt_sink_register_volume_callback(bt_sink_volume_callback);
 	rk_bt_sink_register_callback(bt_sink_callback);
 	rk_bt_sink_open();
 }
@@ -115,22 +143,22 @@ void bt_test_sink_status(void *data)
 	rk_bt_sink_get_state(&pState);
 	switch(pState) {
 		case RK_BT_SINK_STATE_IDLE:
-			printf("++++++++++++ BT MASTER EVENT: idle ++++++++++\n");
+			printf("++++++++++++ BT SINK STATUS: idle ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_CONNECT:
-			printf("++++++++++++ BT MASTER EVENT: connect sucess ++++++++++\n");
+			printf("++++++++++++ BT SINK STATUS: connect sucess ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_PLAY:
-			printf("++++++++++++ BT MASTER EVENT: playing ++++++++++\n");
+			printf("++++++++++++ BT SINK STATUS: playing ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_PAUSE:
-			printf("++++++++++++ BT MASTER EVENT: paused ++++++++++\n");
+			printf("++++++++++++ BT SINK STATUS: paused ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_STOP:
-			printf("++++++++++++ BT MASTER EVENT: stoped ++++++++++\n");
+			printf("++++++++++++ BT SINK STATUS: stoped ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_DISCONNECT:
-			printf("++++++++++++ BT MASTER EVENT: disconnected ++++++++++\n");
+			printf("++++++++++++ BT SINK STATUS: disconnected ++++++++++\n");
 			break;
 	}
 }
@@ -160,16 +188,6 @@ void bt_test_sink_music_stop(void *data)
 	rk_bt_sink_stop();
 }
 
-void bt_test_sink_reconnect_disenable(void *data)
-{
-	rk_bt_sink_set_auto_reconnect(0);
-}
-
-void bt_test_sink_reconnect_enable(void *data)
-{
-	rk_bt_sink_set_auto_reconnect(1);
-}
-
 void bt_test_sink_disconnect(void *data)
 {
 	rk_bt_sink_disconnect();
@@ -178,6 +196,34 @@ void bt_test_sink_disconnect(void *data)
 void bt_test_sink_close(void *data)
 {
 	rk_bt_sink_close();
+}
+
+void bt_test_sink_set_volume(void *data)
+{
+	int i = 0;
+
+	printf("===== A2DP SINK Set Volume:100 =====\n");
+	rk_bt_sink_set_volume(127);
+	sleep(2);
+	printf("===== A2DP SINK Set Volume:64 =====\n");
+	rk_bt_sink_set_volume(64);
+	sleep(2);
+	printf("===== A2DP SINK Set Volume:0 =====\n");
+	rk_bt_sink_set_volume(0);
+	sleep(2);
+
+	for (; i < 17; i++) {
+		printf("===== A2DP SINK Set Volume UP =====\n");
+		rk_bt_sink_volume_up();
+		sleep(2);
+	}
+
+	for (i = 0; i < 17; i++) {
+		printf("===== A2DP SINK Set Volume DOWN =====\n");
+		rk_bt_sink_volume_down();
+		sleep(2);
+	}
+
 }
 
 /******************************************/
@@ -200,6 +246,27 @@ void bt_test_source_status_callback(void *userdata, const RK_BT_SOURCE_EVENT enE
 			break;
 		case BT_SOURCE_EVENT_DISCONNECTED:
 			printf("++++++++++++ BT SOURCE EVENT:disconnect ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_PLAY:
+			printf("++++++++++++ BT SOURCE EVENT:play ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_STOP:
+			printf("++++++++++++ BT SOURCE EVENT:stop ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_PAUSE:
+			printf("++++++++++++ BT SOURCE EVENT:pause ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_FORWARD:
+			printf("++++++++++++ BT SOURCE EVENT:next ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_BACKWARD:
+			printf("++++++++++++ BT SOURCE EVENT:previous ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_VOL_UP:
+			printf("++++++++++++ BT SOURCE EVENT:vol up ++++++++++\n");
+			break;
+		case BT_SOURCE_EVENT_RC_VOL_DOWN:
+			printf("++++++++++++ BT SOURCE EVENT:vol down ++++++++++\n");
 			break;
 	}
 }
@@ -362,7 +429,7 @@ void bt_test_spp_write(void *data)
 
 void bt_test_spp_close(void *data)
 {
-	rk_bt_sink_close();
+	rk_bt_spp_close();
 }
 
 void bt_test_spp_status(void *data)
@@ -386,3 +453,119 @@ void bt_test_spp_status(void *data)
 	}
 }
 
+int bt_test_hfp_hp_cb(RK_BT_HFP_EVENT event, void *data)
+{
+	switch(event) {
+		case  RK_BT_HFP_CONNECT_EVT:
+			printf("+++++ BT HFP HP CONNECT +++++\n");
+			break;
+		case RK_BT_HFP_DISCONNECT_EVT:
+			printf("+++++ BT HFP HP DISCONNECT +++++\n");
+			break;
+		case RK_BT_HFP_RING_EVT:
+			printf("+++++ BT HFP HP RING +++++\n");
+			break;
+		case RK_BT_HFP_AUDIO_OPEN_EVT:
+			printf("+++++ BT HFP AUDIO OPEN +++++\n");
+			break;
+		case RK_BT_HFP_AUDIO_CLOSE_EVT:
+			printf("+++++ BT HFP AUDIO CLOSE +++++\n");
+			break;
+		case RK_BT_HFP_PICKUP_EVT:
+			printf("+++++ BT HFP PICKUP +++++\n");
+			break;
+		case RK_BT_HFP_HANGUP_EVT:
+			printf("+++++ BT HFP HANGUP +++++\n");
+			break;
+		case RK_BT_HFP_VOLUME_EVT:
+		{
+			unsigned short volume = *(unsigned short*)data;
+			printf("+++++ BT HFP VOLUME CHANGE, volume: %d +++++\n", volume);
+			break;
+		}
+		default:
+			break;
+	}
+
+	return 0;
+}
+
+void bt_test_hfp_hp_open(void *data)
+{
+	int ret = 0;
+
+	/* must be placed before rk_bt_hfp_open */
+	rk_bt_hfp_register_callback(bt_test_hfp_hp_cb);
+
+	ret = rk_bt_hfp_open();
+	if (ret < 0)
+		printf("%s hfp open failed!\n", __func__);
+}
+
+void bt_test_hfp_hp_accept(void *data)
+{
+	int ret = 0;
+
+	ret = rk_bt_hfp_pickup();
+	if (ret < 0)
+		printf("%s hfp accept failed!\n", __func__);
+}
+
+void bt_test_hfp_hp_hungup(void *data)
+{
+	int ret = 0;
+
+	ret = rk_bt_hfp_hangup();
+	if (ret < 0)
+		printf("%s hfp hungup failed!\n", __func__);
+}
+
+void bt_test_hfp_hp_redial(void *data)
+{
+	int ret = 0;
+
+	ret = rk_bt_hfp_redial();
+	if (ret < 0)
+		printf("%s hfp redial failed!\n", __func__);
+}
+
+void bt_test_hfp_hp_report_battery(void *data)
+{
+	int ret = 0;
+	int i = 0;
+
+	for (i = 0; i < 10; i++) {
+		ret = rk_bt_hfp_report_battery(i);
+		if (ret < 0) {
+			printf("%s hfp report battery(%d) failed!\n", __func__, i);
+			break;
+		}
+
+		sleep(1);
+	}
+}
+
+void bt_test_hfp_hp_set_volume(void *data)
+{
+	int i;
+
+	for(i = 0; i <= 15; i++) {
+		if (rk_bt_hfp_set_volume(i) < 0) {
+			printf("%s hfp set volume(%d) failed!\n", __func__, i);
+			break;
+		}
+		sleep(2);
+	}
+}
+
+void bt_test_hfp_hp_close(void *data)
+{
+	rk_bt_hfp_close();
+}
+
+void bt_test_hfp_sink_open(void *data)
+{
+	rk_bt_sink_register_callback(bt_sink_callback);
+	rk_bt_hfp_register_callback(bt_test_hfp_hp_cb);
+	rk_bt_hfp_sink_open();
+}

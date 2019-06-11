@@ -8,7 +8,12 @@ extern "C" {
 /******************************************/
 /*        BT base server init             */
 /******************************************/
-void bt_test_init_open(void *data);
+void bt_test_bluetooth_init(void *data);
+void bt_test_bluetooth_deinit(void *data);
+
+void bt_test_set_class(void *data);
+void bt_test_enable_reconnect(void *data);
+void bt_test_disable_reconnect(void *data);
 
 /******************************************/
 /*               BLE Test                 */
@@ -31,11 +36,10 @@ void bt_test_sink_music_pause(void *data);
 void bt_test_sink_music_next(void *data);
 void bt_test_sink_music_previous(void *data);
 void bt_test_sink_music_stop(void *data);
-void bt_test_sink_reconnect_enable(void *data);
-void bt_test_sink_reconnect_disenable(void *data);
 void bt_test_sink_disconnect(void *data);
 void bt_test_sink_close(void *data);
 void bt_test_sink_status(void *data);
+void bt_test_sink_set_volume(void *data);
 
 /******************************************/
 /*          A2DP SOURCE Test              */
@@ -51,6 +55,18 @@ void bt_test_spp_open(void *data);
 void bt_test_spp_write(void *data);
 void bt_test_spp_close(void *data);
 void bt_test_spp_status(void *data);
+
+/******************************************/
+/*              HFP Test                  */
+/******************************************/
+void bt_test_hfp_sink_open(void *data);
+void bt_test_hfp_hp_open(void *data);
+void bt_test_hfp_hp_accept(void *data);
+void bt_test_hfp_hp_hungup(void *data);
+void bt_test_hfp_hp_redial(void *data);
+void bt_test_hfp_hp_report_battery(void *data);
+void bt_test_hfp_hp_set_volume(void *data);
+void bt_test_hfp_hp_close(void *data);
 
 #ifdef __cplusplus
 }

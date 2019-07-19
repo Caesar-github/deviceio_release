@@ -13,7 +13,8 @@ typedef struct _bt_device_info {
     char address[17]; // bt address
     bool rssi_valid;
     int rssi;
-    char playrole[12]; // Audio Sink? Audio Source? Unknown?
+    /* Audio Sink? Audio Source? Unknown? Audio Sink | Audio Source(Some devices have sink and source attributes) */
+    char playrole[25];
 } BtDeviceInfo;
 
 /*
@@ -60,6 +61,11 @@ int rk_bt_source_connect(char *address);
 int rk_bt_source_disconnect(char *address);
 int rk_bt_source_remove(char *address);
 int rk_bt_source_register_status_cb(void *userdata, RK_BT_SOURCE_CALLBACK cb);
+int rk_bt_source_resume(void);
+int rk_bt_source_stop(void);
+int rk_bt_source_pause(void);
+int rk_bt_source_vol_up(void);
+int rk_bt_source_vol_down(void);
 
 #ifdef __cplusplus
 }

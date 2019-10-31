@@ -79,7 +79,7 @@ typedef struct {
 	uint8_t data[16];
 } uuid128_t;
 
-int rk_ble_status_cb(RK_BLE_STATE state)
+void _rk_ble_status_cb(RK_BLE_STATE state)
 {
 	switch (state) {
 		case RK_BLE_STATE_IDLE:
@@ -92,7 +92,6 @@ int rk_ble_status_cb(RK_BLE_STATE state)
 			printf("[RK] ble status: RK_BLE_STATE_DISCONNECT\n");
 			break;
 	}
-	return 0;
 }
 
 int RK_blewifi_register_callback(RK_blewifi_state_callback cb)
@@ -105,7 +104,7 @@ int RK_blewifi_register_callback(RK_blewifi_state_callback cb)
 
 static int rk_blewifi_state_callback(RK_WIFI_RUNNING_State_e state)
 {
-	uint8_t ret;
+	uint8_t ret = 0x2;
 
 	printf("[RK] %s state: %d\n", __func__, state);
 	if (state == RK_WIFI_State_CONNECTED) {
@@ -121,9 +120,11 @@ static int rk_blewifi_state_callback(RK_WIFI_RUNNING_State_e state)
 	} else if (state == RK_WIFI_State_CONNECTFAILED_WRONG_KEY) {
 		if (blewifi_status_callback)
 			blewifi_status_callback(RK_BLE_WIFI_State_WRONGKEY_FAIL);
+		ret = 0x2;
 	}
 
 	rk_ble_write(BLE_UUID_WIFI_CHAR, &ret, 0x1);
+	return 0;
 }
 
 static void *rk_config_wifi_thread(void)
@@ -137,7 +138,10 @@ static void *rk_config_wifi_thread(void)
 	prctl(PR_SET_NAME,"rk_config_wifi_thread");
 
 	RK_wifi_ble_register_callback(rk_blewifi_state_callback);
+	RK_wifi_enable(0);
+	RK_wifi_enable(1);
 	RK_wifi_connect(wifi_cfg.ssid, wifi_cfg.psk);
+	return NULL;
 }
 
 static void rk_ble_send_data(void)
@@ -164,7 +168,7 @@ static void rk_ble_send_data(void)
 	}
 }
 
-int rk_ble_recv_data_cb(const char *uuid, unsigned char *data, int len)
+void _rk_ble_recv_data_cb(const char *uuid, char *data, int len)
 {
 	if (!strcmp(uuid, BLE_UUID_WIFI_CHAR)) {
 		uint8_t str[512];
@@ -193,7 +197,7 @@ int rk_ble_recv_data_cb(const char *uuid, unsigned char *data, int len)
 			ble_data->cmd, ble_data->start, end_flag);
 		if ((ble_data->start != 0x1) || (end_flag != 0x4)) {
 			printf("[RK] BLE RECV DATA ERROR !!!\n");
-			return -1;
+			return;
 		}
 
 		if (strncmp(ble_data->cmd, "wifilists", 9) == 0) {
@@ -234,17 +238,13 @@ scan_retry:
 			pthread_create(&wificonfig_tid, NULL, rk_config_wifi_thread, NULL);
 		}
 	}
-
-	return 0;
 }
 
-int rk_ble_request_data_cb(const char *uuid)
+void _rk_ble_request_data_cb(const char *uuid)
 {
 	if (!strcmp(uuid, BLE_UUID_WIFI_CHAR)) {
 		printf("Call ble wifi request callback!\n");
 	}
-
-	return 0;
 }
 
 void rk_ble_wifi_init(void *data)
@@ -262,13 +262,13 @@ void rk_ble_wifi_init(void *data)
 	bt_content.ble_content.chr_uuid[0].uuid = BLE_UUID_WIFI_CHAR;
 	bt_content.ble_content.chr_uuid[0].len = UUID_128;
 	bt_content.ble_content.chr_cnt = 1;
-	bt_content.ble_content.cb_ble_recv_fun = rk_ble_recv_data_cb;
-	bt_content.ble_content.cb_ble_request_data = rk_ble_request_data_cb;
+	bt_content.ble_content.cb_ble_recv_fun = _rk_ble_recv_data_cb;
+	bt_content.ble_content.cb_ble_request_data = _rk_ble_request_data_cb;
 	bt_content.ble_content.advDataType = BLE_ADVDATA_TYPE_SYSTEM;
 
 	//bsa ble must register data recv callback, can't delete
-	rk_ble_register_recv_callback(rk_ble_recv_data_cb);
-	rk_ble_register_status_callback(rk_ble_status_cb);
+	rk_ble_register_recv_callback(_rk_ble_recv_data_cb);
+	rk_ble_register_status_callback(_rk_ble_status_cb);
 	rk_bt_init(&bt_content);
 
 	sleep(3);

@@ -39,9 +39,9 @@
 #define PERIOD_SIZE_1024	READ_FRAME_1024
 
 static const char *alsa_playback_device = "default";
-static const char *alsa_capture_device = "2mic_loopback";
-static const char *bt_playback_device = "bluetooth";
-static const char *bt_capture_device = "bluetooth";
+static const char *alsa_capture_device = "6mic_loopback"; //"2mic_loopback";
+static const char *bt_playback_device = "hw:1,0";
+static const char *bt_capture_device = "hw:1,0";
 
 typedef struct {
 	unsigned int channels;
@@ -64,6 +64,8 @@ static duplex_info_t g_duplex_control = {
 	0,
 };
 
+static RkBtPraiedDevice *g_dev_list_test;
+
 static void bt_test_ble_recv_data_callback(const char *uuid, char *data, int len);
 static void bt_test_ble_request_data_callback(const char *uuid);
 
@@ -71,18 +73,80 @@ static void bt_test_ble_request_data_callback(const char *uuid);
 static RkBtContent bt_content;
 
 static RK_BT_SCO_CODEC_TYPE sco_codec = BT_SCO_CODEC_CVSD;
-
 /******************************************/
 /*        BT base server init             */
 /******************************************/
+static void bt_test_state_cb(RK_BT_STATE state)
+{
+	switch(state) {
+		case RK_BT_STATE_TURNING_ON:
+			printf("++++++++++ RK_BT_STATE_TURNING_ON ++++++++++\n");
+			break;
+		case RK_BT_STATE_ON:
+			printf("++++++++++ RK_BT_STATE_ON ++++++++++\n");
+			break;
+		case RK_BT_STATE_TURNING_OFF:
+			printf("++++++++++ RK_BT_STATE_TURNING_OFF ++++++++++\n");
+			break;
+		case RK_BT_STATE_OFF:
+			printf("++++++++++ RK_BT_STATE_OFF ++++++++++\n");
+			break;
+	}
+}
+
+static void bt_test_bond_state_cb(const char *bd_addr, const char *name, RK_BT_BOND_STATE state)
+{
+	switch(state) {
+		case RK_BT_BOND_STATE_NONE:
+			printf("++++++++++ BT BOND NONE: %s, %s ++++++++++\n", name, bd_addr);
+			break;
+		case RK_BT_BOND_STATE_BONDING:
+			printf("++++++++++ BT BOND BONDING: %s, %s ++++++++++\n", name, bd_addr);
+			break;
+		case RK_BT_BOND_STATE_BONDED:
+			printf("++++++++++ BT BONDED: %s, %s ++++++++++\n", name, bd_addr);
+			break;
+	}
+}
+
+static void bt_test_discovery_status_cb(RK_BT_DISCOVERY_STATE status)
+{
+	switch(status) {
+		case RK_BT_DISC_STARTED:
+			printf("++++++++++ RK_BT_DISC_STARTED ++++++++++\n");
+			break;
+		case RK_BT_DISC_STOPPED_AUTO:
+			printf("++++++++++ RK_BT_DISC_STOPPED_AUTO ++++++++++\n");
+			break;
+		case RK_BT_DISC_START_FAILED:
+			printf("++++++++++ RK_BT_DISC_START_FAILED ++++++++++\n");
+			break;
+		case RK_BT_DISC_STOPPED_BY_USER:
+			printf("++++++++++ RK_BT_DISC_STOPPED_BY_USER ++++++++++\n");
+			break;
+	}
+}
+
+static void bt_test_dev_found_cb(const char *address,const char *name, unsigned int bt_class, int rssi)
+{
+	printf("++++++++++++ Device is found ++++++++++++\n");
+	printf("    address: %s\n", address);
+	printf("    name: %s\n", name);
+	printf("    class: 0x%x\n", bt_class);
+	printf("    rssi: %d\n", rssi);
+	printf("+++++++++++++++++++++++++++++++++++++++++\n");
+}
+
 /*
  * The Bluetooth basic service is turned on and the function
  * must be called before using the Bluetooth function.
  */
-void bt_test_bluetooth_init(void *data)
+void bt_test_bluetooth_init(char *data)
 {
 	printf("--------------- BT BLUETOOTH INIT ----------------\n");
+	memset(&bt_content, 0, sizeof(RkBtContent));
 	bt_content.bt_name = "ROCKCHIP_AUDIO";
+	//bt_content.bt_addr = "11:22:33:44:55:66";
 	bt_content.ble_content.ble_name = "ROCKCHIP_AUDIO BLE";
 	bt_content.ble_content.server_uuid.uuid = BLE_UUID_SERVICE;
 	bt_content.ble_content.server_uuid.len = UUID_128;
@@ -97,28 +161,117 @@ void bt_test_bluetooth_init(void *data)
 	bt_content.ble_content.cb_ble_recv_fun = bt_test_ble_recv_data_callback;
 	bt_content.ble_content.cb_ble_request_data = bt_test_ble_request_data_callback;
 
+	rk_bt_register_state_callback(bt_test_state_cb);
+	rk_bt_register_bond_callback(bt_test_bond_state_cb);
+	rk_bt_register_discovery_callback(bt_test_discovery_status_cb);
+	rk_bt_register_dev_found_callback(bt_test_dev_found_cb);
 	rk_bt_init(&bt_content);
 }
 
-void bt_test_bluetooth_deinit(void *data)
+void bt_test_bluetooth_deinit(char *data)
 {
 	printf("--------------- BT BLUETOOTH DEINIT ----------------\n");
 	rk_bt_deinit();
 }
 
-void bt_test_set_class(void *data)
+void bt_test_set_class(char *data)
 {
 	rk_bt_set_class(0x240404);
 }
 
-void bt_test_enable_reconnect(void *data)
+void bt_test_enable_reconnect(char *data)
 {
 	rk_bt_enable_reconnect(1);
 }
 
-void bt_test_disable_reconnect(void *data)
+void bt_test_disable_reconnect(char *data)
 {
 	rk_bt_enable_reconnect(0);
+}
+
+void bt_test_get_device_name(char *data)
+{
+	char name[256];
+	memset(name, 0, 256);
+	rk_bt_get_device_name(name, 256);
+	printf("bt device name: %s\n", name);
+}
+
+void bt_test_get_device_addr(char *data)
+{
+	char addr[18];
+	memset(addr, 0, 18);
+	rk_bt_get_device_addr(addr, 18);
+	printf("bt device addr: %s\n", addr);
+}
+
+void bt_test_set_device_name(char *data)
+{
+	printf("%s: device name: %s\n", __func__, data);
+	rk_bt_set_device_name(data);
+}
+
+void bt_test_pair_by_addr(char *data)
+{
+	rk_bt_pair_by_addr(data);
+}
+
+void bt_test_unpair_by_addr(char *data)
+{
+	rk_bt_unpair_by_addr(data);
+}
+
+void bt_test_get_paired_devices(char *data)
+{
+	int i, count;
+	bt_paried_device *dev_tmp = NULL;
+
+	if(g_dev_list_test)
+		bt_test_free_paired_devices(NULL);
+
+	rk_bt_get_paired_devices(&g_dev_list_test, &count);
+
+	printf("%s: current paired devices count: %d\n", __func__, count);
+	dev_tmp = g_dev_list_test;
+	for(i = 0; i < count; i++) {
+		printf("device %d\n", i);
+		printf("	remote_address: %s\n", dev_tmp->remote_address);
+		printf("	remote_name: %s\n", dev_tmp->remote_name);
+		printf("	is_connected: %d\n", dev_tmp->is_connected);
+		dev_tmp = dev_tmp->next;
+	}
+}
+
+void bt_test_free_paired_devices(char *data)
+{
+	rk_bt_free_paired_devices(g_dev_list_test);
+	g_dev_list_test = NULL;
+}
+
+void bt_test_start_discovery(char *data)
+{
+	rk_bt_start_discovery(10000); //10s
+}
+
+void bt_test_cancel_discovery(char *data)
+{
+	rk_bt_cancel_discovery();
+}
+
+void bt_test_is_discovering(char *data)
+{
+	bool ret = rk_bt_is_discovering();
+	printf("the device discovery procedure is active? %s\n", (ret == true) ? "yes" : "no");
+}
+
+void bt_test_display_devices(char *data)
+{
+	rk_bt_display_devices();
+}
+
+void bt_test_display_paired_devices(char *data)
+{
+	rk_bt_display_paired_devices();
 }
 
 /******************************************/
@@ -130,9 +283,22 @@ int bt_sink_callback(RK_BT_SINK_STATE state)
 		case RK_BT_SINK_STATE_IDLE:
 			printf("++++++++++++ BT SINK EVENT: idle ++++++++++\n");
 			break;
+#if 0
+		case RK_BT_SINK_STATE_CONNECTING:
+			printf("++++++++++++ BT SINK EVENT: connecting ++++++++++\n");
+			break;
+		case RK_BT_SINK_STATE_DISCONNECTING:
+			printf("++++++++++++ BT SINK EVENT: disconnecting ++++++++++\n");
+			break;
+#endif
 		case RK_BT_SINK_STATE_CONNECT:
 			printf("++++++++++++ BT SINK EVENT: connect sucess ++++++++++\n");
 			break;
+		case RK_BT_SINK_STATE_DISCONNECT:
+			printf("++++++++++++ BT SINK EVENT: disconnected ++++++++++\n");
+			//system("amixer set bt 255");
+			break;
+		//avrcp
 		case RK_BT_SINK_STATE_PLAY:
 			printf("++++++++++++ BT SINK EVENT: playing ++++++++++\n");
 			break;
@@ -142,8 +308,15 @@ int bt_sink_callback(RK_BT_SINK_STATE state)
 		case RK_BT_SINK_STATE_STOP:
 			printf("++++++++++++ BT SINK EVENT: stoped ++++++++++\n");
 			break;
-		case RK_BT_SINK_STATE_DISCONNECT:
-			printf("++++++++++++ BT SINK EVENT: disconnected ++++++++++\n");
+		//avdtp(a2dp)
+		case RK_BT_A2DP_SINK_STARTED:
+			printf("++++++++++++ BT A2DP SINK STATE: started ++++++++++\n");
+			break;
+		case RK_BT_A2DP_SINK_SUSPENDED:
+			printf("++++++++++++ BT A2DP SINK STATE: suspended ++++++++++\n");
+			break;
+		case RK_BT_A2DP_SINK_STOPPED:
+			printf("++++++++++++ BT A2DP SINK STATE: stoped ++++++++++\n");
 			break;
 	}
 
@@ -153,36 +326,81 @@ int bt_sink_callback(RK_BT_SINK_STATE state)
 void bt_sink_volume_callback(int volume)
 {
 	printf("++++++++ bt sink volume change, volume: %d ++++++++\n", volume);
+
+	/* Change the code below based on which interface audio is going out to. */
+#if 0
+	char buffer[100];
+	sprintf(buffer, "amixer set bt %d", volume * 255 / 127);
+	if (-1 == system(buffer))
+		printf("set volume error: %d, volume: %d\n", errno, volume);
+#endif
 }
 
-void bt_test_sink_open(void *data)
+void bt_sink_track_change_callback(const char *bd_addr, BtTrackInfo track_info)
+{
+#if 1
+	printf("++++++++ bt sink track change ++++++++\n");
+	printf("    remote device address: %s\n", bd_addr);
+	printf("    title: %s\n", track_info.title);
+	printf("    artist: %s\n", track_info.artist);
+	printf("    album: %s\n", track_info.album);
+	printf("    genre: %s\n", track_info.genre);
+	printf("    num_tracks: %s\n", track_info.num_tracks);
+	printf("    track_num: %s\n", track_info.track_num);
+	printf("    playing_time: %s\n", track_info.playing_time);
+#endif
+}
+
+void bt_sink_position_change_callback(const char *bd_addr, int song_len, int song_pos)
+{
+#if 1
+	printf("++++++++ bt sink position change ++++++++\n");
+	printf("    remote device address: %s\n", bd_addr);
+	printf("    song_len: %d, song_pos: %d\n", song_len, song_pos);
+#endif
+}
+
+void bt_test_sink_open(char *data)
 {
 	rk_bt_sink_register_volume_callback(bt_sink_volume_callback);
+	rk_bt_sink_register_track_callback(bt_sink_track_change_callback);
+	rk_bt_sink_register_position_callback(bt_sink_position_change_callback);
 	rk_bt_sink_register_callback(bt_sink_callback);
 	rk_bt_sink_open();
+	//rk_bt_sink_set_alsa_device("bt");
 }
 
-void bt_test_sink_visibility00(void *data)
+void bt_test_sink_visibility00(char *data)
 {
 	rk_bt_sink_set_visibility(0, 0);
 }
 
-void bt_test_sink_visibility01(void *data)
+void bt_test_sink_visibility01(char *data)
 {
 	rk_bt_sink_set_visibility(0, 1);
 }
 
-void bt_test_sink_visibility10(void *data)
+void bt_test_sink_visibility10(char *data)
 {
 	rk_bt_sink_set_visibility(1, 0);
 }
 
-void bt_test_sink_visibility11(void *data)
+void bt_test_sink_visibility11(char *data)
 {
 	rk_bt_sink_set_visibility(1, 1);
 }
 
-void bt_test_sink_status(void *data)
+void bt_test_ble_visibility00(char *data)
+{
+	rk_bt_ble_set_visibility(0, 0);
+}
+
+void bt_test_ble_visibility11(char *data)
+{
+	rk_bt_ble_set_visibility(1, 1);
+}
+
+void bt_test_sink_status(char *data)
 {
 	RK_BT_SINK_STATE pState;
 
@@ -195,12 +413,15 @@ void bt_test_sink_status(void *data)
 			printf("++++++++++++ BT SINK STATUS: connect sucess ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_PLAY:
+		case RK_BT_A2DP_SINK_STARTED:
 			printf("++++++++++++ BT SINK STATUS: playing ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_PAUSE:
+		case RK_BT_A2DP_SINK_SUSPENDED:
 			printf("++++++++++++ BT SINK STATUS: paused ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_STOP:
+		case RK_BT_A2DP_SINK_STOPPED:
 			printf("++++++++++++ BT SINK STATUS: stoped ++++++++++\n");
 			break;
 		case RK_BT_SINK_STATE_DISCONNECT:
@@ -209,42 +430,42 @@ void bt_test_sink_status(void *data)
 	}
 }
 
-void bt_test_sink_music_play(void *data)
+void bt_test_sink_music_play(char *data)
 {
 	rk_bt_sink_play();
 }
 
-void bt_test_sink_music_pause(void *data)
+void bt_test_sink_music_pause(char *data)
 {
 	rk_bt_sink_pause();
 }
 
-void bt_test_sink_music_next(void *data)
+void bt_test_sink_music_next(char *data)
 {
 	rk_bt_sink_next();
 }
 
-void bt_test_sink_music_previous(void *data)
+void bt_test_sink_music_previous(char *data)
 {
 	rk_bt_sink_prev();
 }
 
-void bt_test_sink_music_stop(void *data)
+void bt_test_sink_music_stop(char *data)
 {
 	rk_bt_sink_stop();
 }
 
-void bt_test_sink_disconnect(void *data)
+void bt_test_sink_disconnect(char *data)
 {
 	rk_bt_sink_disconnect();
 }
 
-void bt_test_sink_close(void *data)
+void bt_test_sink_close(char *data)
 {
 	rk_bt_sink_close();
 }
 
-void bt_test_sink_set_volume(void *data)
+void bt_test_sink_set_volume(char *data)
 {
 	int i = 0;
 
@@ -269,7 +490,27 @@ void bt_test_sink_set_volume(void *data)
 		rk_bt_sink_volume_down();
 		sleep(2);
 	}
+}
 
+void bt_test_sink_connect_by_addr(char *data)
+{
+	rk_bt_sink_connect_by_addr(data);
+}
+
+void bt_test_sink_disconnect_by_addr(char *data)
+{
+	rk_bt_sink_disconnect_by_addr(data);
+}
+
+void bt_test_sink_get_play_status(char *data)
+{
+	rk_bt_sink_get_play_status();
+}
+
+void bt_test_sink_get_poschange(char *data)
+{
+	bool pos_change = rk_bt_sink_get_poschange();
+	printf("support position change: %s\n", pos_change ? "yes" : "no");
 }
 
 /******************************************/
@@ -277,8 +518,6 @@ void bt_test_sink_set_volume(void *data)
 /******************************************/
 void bt_test_source_status_callback(void *userdata, const RK_BT_SOURCE_EVENT enEvent)
 {
-	char address[17], name[100];
-
 	switch(enEvent)
 	{
 		case BT_SOURCE_EVENT_CONNECT_FAILED:
@@ -286,9 +525,6 @@ void bt_test_source_status_callback(void *userdata, const RK_BT_SOURCE_EVENT enE
 			break;
 		case BT_SOURCE_EVENT_CONNECTED:
 			printf("++++++++++++ BT SOURCE EVENT:connect sucess ++++++++++\n");
-			rk_bt_source_get_device_name(name, 100);
-			rk_bt_source_get_device_addr(address, 17);
-			printf("DeviceName:%s. Address:%s\n", name, address);
 			break;
 		case BT_SOURCE_EVENT_DISCONNECTED:
 			printf("++++++++++++ BT SOURCE EVENT:disconnect ++++++++++\n");
@@ -317,17 +553,17 @@ void bt_test_source_status_callback(void *userdata, const RK_BT_SOURCE_EVENT enE
 	}
 }
 
-void bt_test_source_auto_start(void *data)
+void bt_test_source_auto_start(char *data)
 {
 	rk_bt_source_auto_connect_start(NULL, bt_test_source_status_callback);
 }
 
-void bt_test_source_auto_stop(void *data)
+void bt_test_source_auto_stop(char *data)
 {
 	rk_bt_source_auto_connect_stop();
 }
 
-void bt_test_source_connect_status(void *data)
+void bt_test_source_connect_status(char *data)
 {
 	RK_BT_SOURCE_STATUS status;
 	char name[256], address[256];
@@ -385,13 +621,13 @@ static void bt_test_ble_request_data_callback(const char *uuid)
 	printf("=== %s uuid: %s===\n", __func__, uuid);
 }
 
-void bt_test_ble_start(void *data) {
+void bt_test_ble_start(char *data) {
 	rk_ble_register_status_callback(ble_status_callback_test);
 	rk_ble_register_recv_callback(bt_test_ble_recv_data_callback);
 	rk_ble_start(&bt_content.ble_content);
 }
 
-void bt_test_ble_write(void *data) {
+void bt_test_ble_write(char *data) {
 	char write_buf[134];
 	int i = 0;
 
@@ -402,7 +638,7 @@ void bt_test_ble_write(void *data) {
 	rk_ble_write(BLE_UUID_SEND, write_buf, 134);
 }
 
-void bt_test_ble_get_status(void *data)
+void bt_test_ble_get_status(char *data)
 {
 	RK_BLE_STATE state;
 
@@ -421,18 +657,20 @@ void bt_test_ble_get_status(void *data)
 	}
 }
 
-void bt_test_ble_stop(void *data) {
-	rk_ble_register_status_callback(NULL);
-	rk_ble_register_recv_callback(NULL);
+void bt_test_ble_stop(char *data) {
 	rk_ble_stop();
 }
 
-void bt_test_ble_setup(void *data) {
+void bt_test_ble_setup(char *data) {
 	rk_ble_setup(NULL);
 }
 
-void bt_test_ble_clean(void *data) {
+void bt_test_ble_clean(char *data) {
 	rk_ble_clean();
+}
+
+void bt_test_ble_disconnect(char *data) {
+	rk_ble_disconnect();
 }
 
 /******************************************/
@@ -464,14 +702,14 @@ void _btspp_recv_callback(char *data, int len)
 	}
 }
 
-void bt_test_spp_open(void *data)
+void bt_test_spp_open(char *data)
 {
 	rk_bt_spp_open();
 	rk_bt_spp_register_status_cb(_btspp_status_callback);
 	rk_bt_spp_register_recv_cb(_btspp_recv_callback);
 }
 
-void bt_test_spp_write(void *data)
+void bt_test_spp_write(char *data)
 {
 	unsigned int ret = 0;
 	char buff[100] = {"This is a message from rockchip board!"};
@@ -483,12 +721,12 @@ void bt_test_spp_write(void *data)
 	}
 }
 
-void bt_test_spp_close(void *data)
+void bt_test_spp_close(char *data)
 {
 	rk_bt_spp_close();
 }
 
-void bt_test_spp_status(void *data)
+void bt_test_spp_status(char *data)
 {
 	RK_BT_SPP_STATE status;
 
@@ -1054,7 +1292,7 @@ int bt_test_hfp_hp_cb(RK_BT_HFP_EVENT event, void *data)
 	return 0;
 }
 
-void bt_test_hfp_hp_open(void *data)
+void bt_test_hfp_hp_open(char *data)
 {
 	int ret = 0;
 
@@ -1068,7 +1306,7 @@ void bt_test_hfp_hp_open(void *data)
 		printf("%s hfp open failed!\n", __func__);
 }
 
-void bt_test_hfp_hp_accept(void *data)
+void bt_test_hfp_hp_accept(char *data)
 {
 	int ret = 0;
 
@@ -1077,7 +1315,7 @@ void bt_test_hfp_hp_accept(void *data)
 		printf("%s hfp accept failed!\n", __func__);
 }
 
-void bt_test_hfp_hp_hungup(void *data)
+void bt_test_hfp_hp_hungup(char *data)
 {
 	int ret = 0;
 
@@ -1086,7 +1324,7 @@ void bt_test_hfp_hp_hungup(void *data)
 		printf("%s hfp hungup failed!\n", __func__);
 }
 
-void bt_test_hfp_hp_redial(void *data)
+void bt_test_hfp_hp_redial(char *data)
 {
 	int ret = 0;
 
@@ -1095,7 +1333,7 @@ void bt_test_hfp_hp_redial(void *data)
 		printf("%s hfp redial failed!\n", __func__);
 }
 
-void bt_test_hfp_hp_report_battery(void *data)
+void bt_test_hfp_hp_report_battery(char *data)
 {
 	int ret = 0;
 	int i = 0;
@@ -1111,7 +1349,7 @@ void bt_test_hfp_hp_report_battery(void *data)
 	}
 }
 
-void bt_test_hfp_hp_set_volume(void *data)
+void bt_test_hfp_hp_set_volume(char *data)
 {
 	int i;
 
@@ -1124,61 +1362,63 @@ void bt_test_hfp_hp_set_volume(void *data)
 	}
 }
 
-void bt_test_hfp_hp_close(void *data)
+void bt_test_hfp_hp_close(char *data)
 {
 	rk_bt_hfp_close();
 }
 
-void bt_test_hfp_hp_disconnect(void *data)
+void bt_test_hfp_hp_disconnect(char *data)
 {
 	rk_bt_hfp_disconnect();
 }
 
-void bt_test_hfp_sink_open(void *data)
+void bt_test_hfp_sink_open(char *data)
 {
 	rk_bt_sink_register_volume_callback(bt_sink_volume_callback);
+	rk_bt_sink_register_track_callback(bt_sink_track_change_callback);
+	rk_bt_sink_register_position_callback(bt_sink_position_change_callback);
 	rk_bt_sink_register_callback(bt_sink_callback);
 	rk_bt_hfp_register_callback(bt_test_hfp_hp_cb);
 	rk_bt_hfp_sink_open();
 }
 
 /* OBEX FOR PBAP */
-void bt_test_obex_init(void *data)
+void bt_test_obex_init(char *data)
 {
 	rk_bt_obex_init();
 }
 
-void bt_test_obex_pbap_connect(void *data)
+void bt_test_obex_pbap_connect(char *data)
 {
-	rk_bt_obex_pbap_connect("24:31:54:8E:00:0A");
+	rk_bt_obex_pbap_connect(data);
 }
 
-void bt_test_obex_pbap_get_pb_vcf(void *data)
+void bt_test_obex_pbap_get_pb_vcf(char *data)
 {
 	rk_bt_obex_pbap_get_vcf("pb", "/data/pb.vcf");
 }
 
-void bt_test_obex_pbap_get_ich_vcf(void *data)
+void bt_test_obex_pbap_get_ich_vcf(char *data)
 {
 	rk_bt_obex_pbap_get_vcf("ich", "/data/ich.vcf");
 }
 
-void bt_test_obex_pbap_get_och_vcf(void *data)
+void bt_test_obex_pbap_get_och_vcf(char *data)
 {
 	rk_bt_obex_pbap_get_vcf("och", "/data/och.vcf");
 }
 
-void bt_test_obex_pbap_get_mch_vcf(void *data)
+void bt_test_obex_pbap_get_mch_vcf(char *data)
 {
 	rk_bt_obex_pbap_get_vcf("mch", "/data/mch.vcf");
 }
 
-void bt_test_obex_pbap_disconnect(void *data)
+void bt_test_obex_pbap_disconnect(char *data)
 {
 	rk_bt_obex_pbap_disconnect(NULL);
 }
 
-void bt_test_obex_close(void *data)
+void bt_test_obex_close(char *data)
 {
 	rk_bt_obex_close();
 }

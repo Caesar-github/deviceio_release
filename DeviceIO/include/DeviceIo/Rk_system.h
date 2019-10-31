@@ -6,6 +6,36 @@ extern "C" {
 #endif
 
 /*
+ *Version 1.3.0 Release 2019/10/30
+  1.bluez: add rk_bt_deinit api
+  2.bluez: fix get lcoal device name and bt mac address api
+  3.blueZ: support pbap profile
+  4.bluez: support hfp 16K sample rate
+  5.bluez: support sink underrun msg report
+  6.bsa: support set bt mac address in rk_bt_init
+  7.bsa: add rk_bt_sink_set_alsa_device api
+  8.bsa: add rk_bt_ble_set_visibility, rk_ble_set_local_privacy api
+  9.add bt state report
+  10.add bt pair state report
+  11.add rk_bt_start_discovery, rk_bt_cancel_discovery, rk_bt_is_discovering, rk_bt_display_devices api
+  12.add rk_bt_pair_by_addr, rk_bt_unpair_by_addr api
+  13.add rk_bt_get_paired_devices, rk_bt_free_paired_devices, rk_bt_display_paired_devices api
+  14.add rk_bt_set_device_name api
+  15. add song track info report
+  16. add song playing progress change report
+  17. add avdtp(a2dp sink) state report
+  18. add rk_bt_sink_connect_by_addr, rk_bt_sink_disconnect_by_addr api
+  19. add rk_bt_sink_get_play_status, rk_bt_sink_get_poschange api
+  20. support log to syslog
+ *Version 1.2.4 Release 2019/06/24
+  1.add alsa control demo
+  2.add rk_bt_hfp_disconnect api
+  3.fix PICKUP and HANGUP events cannot be received when answering or rejecting calls on the phone
+  4.bsa: add hfp enable cvsd(8k samplerate) api
+  5.bsa: fix the cypress bsa pairing popup prompt
+  6.bsa: update broadcom bsa version to rockchip_20190617
+  7.bsa: fix can't identify individual COD while bluetooth scanning
+  8.bsa: fix battery power report bug
  *Version 1.2.3 Release 2019/06/05
   1.bluez:add a2dp sink volume api
   2.bluez:fix rk_bt_sink_set_visibility api
@@ -60,7 +90,7 @@ extern "C" {
  *Version 1.0.0 Release 2018/12/22
  */
 
-#define DEVICEIO_VERSION "V1.2.3"
+#define DEVICEIO_VERSION "V1.3.0"
 
 int RK_read_chip_id(char *buffer, const int size);
 int RK_read_version(char *buffer, const int size);

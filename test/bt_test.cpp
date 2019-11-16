@@ -338,7 +338,7 @@ void bt_sink_volume_callback(int volume)
 
 void bt_sink_track_change_callback(const char *bd_addr, BtTrackInfo track_info)
 {
-#if 1
+#if 0
 	printf("++++++++ bt sink track change ++++++++\n");
 	printf("    remote device address: %s\n", bd_addr);
 	printf("    title: %s\n", track_info.title);
@@ -353,7 +353,7 @@ void bt_sink_track_change_callback(const char *bd_addr, BtTrackInfo track_info)
 
 void bt_sink_position_change_callback(const char *bd_addr, int song_len, int song_pos)
 {
-#if 1
+#if 0
 	printf("++++++++ bt sink position change ++++++++\n");
 	printf("    remote device address: %s\n", bd_addr);
 	printf("    song_len: %d, song_pos: %d\n", song_len, song_pos);
@@ -516,39 +516,40 @@ void bt_test_sink_get_poschange(char *data)
 /******************************************/
 /*              A2DP SOURCE               */
 /******************************************/
-void bt_test_source_status_callback(void *userdata, const RK_BT_SOURCE_EVENT enEvent)
+void bt_test_source_status_callback(void *userdata, const char *bd_addr,
+			const char *name, const RK_BT_SOURCE_EVENT enEvent)
 {
 	switch(enEvent)
 	{
 		case BT_SOURCE_EVENT_CONNECT_FAILED:
-			printf("++++++++++++ BT SOURCE EVENT:connect failed ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_CONNECT_FAILED: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_CONNECTED:
-			printf("++++++++++++ BT SOURCE EVENT:connect sucess ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_CONNECTED: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_DISCONNECTED:
-			printf("++++++++++++ BT SOURCE EVENT:disconnect ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_DISCONNECTED: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_PLAY:
-			printf("++++++++++++ BT SOURCE EVENT:play ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_PLAY: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_STOP:
-			printf("++++++++++++ BT SOURCE EVENT:stop ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_STOP: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_PAUSE:
-			printf("++++++++++++ BT SOURCE EVENT:pause ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_PAUSE: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_FORWARD:
-			printf("++++++++++++ BT SOURCE EVENT:next ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_FORWARD: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_BACKWARD:
-			printf("++++++++++++ BT SOURCE EVENT:previous ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_BACKWARD: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_VOL_UP:
-			printf("++++++++++++ BT SOURCE EVENT:vol up ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_VOL_UP: %s, %s +++++\n", name, bd_addr);
 			break;
 		case BT_SOURCE_EVENT_RC_VOL_DOWN:
-			printf("++++++++++++ BT SOURCE EVENT:vol down ++++++++++\n");
+			printf("+++++ BT_SOURCE_EVENT_RC_VOL_DOWN: %s, %s +++++\n", name, bd_addr);
 			break;
 	}
 }
@@ -574,6 +575,32 @@ void bt_test_source_connect_status(char *data)
 		printf("\t name:%s, address:%s\n", name, address);
 	} else
 		printf("++++++++++++ BT SOURCE STATUS: disconnected ++++++++++++\n");
+}
+
+void bt_test_source_open(char *data)
+{
+	rk_bt_source_register_status_cb(NULL, bt_test_source_status_callback);
+	rk_bt_source_open();
+}
+
+void bt_test_source_close(char *data)
+{
+	rk_bt_source_close();
+}
+
+void bt_test_source_connect_by_addr(char *data)
+{
+	rk_bt_source_connect(data);
+}
+
+void bt_test_source_disconnect_by_addr(char *data)
+{
+	rk_bt_source_disconnect(data);
+}
+
+void bt_test_source_remove_by_addr(char *data)
+{
+	rk_bt_source_remove(data);
 }
 
 /******************************************/

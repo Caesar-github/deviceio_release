@@ -72,6 +72,14 @@ static command_t wifi_config_command_table[] = {
 	{"wifi_close", rk_wifi_close},
 	{"wifi_connect", rk_wifi_connect},
 	{"wifi_ping", rk_wifi_ping},
+	{"wifi_scan", rk_wifi_scan},
+	{"wifi_getSavedInfo", rk_wifi_getSavedInfo},
+	{"rk_wifi_getConnectionInfo", rk_wifi_getConnectionInfo},
+	{"wifi_connect_with_bssid", rk_wifi_connect_with_bssid},
+	{"wifi_cancel", rk_wifi_cancel},
+	{"wifi_forget_with_bssid", rk_wifi_forget_with_bssid},
+	{"wifi_connect1", rk_wifi_connect1},
+	{"rk_wifi_disconnect", rk_wifi_disconnect},
 };
 
 static command_bt_t bt_command_table[] = {
@@ -95,6 +103,11 @@ static command_bt_t bt_command_table[] = {
 	{"bt_test_source_auto_start", bt_test_source_auto_start},
 	{"bt_test_source_connect_status", bt_test_source_connect_status},
 	{"bt_test_source_auto_stop", bt_test_source_auto_stop},
+	{"bt_test_source_open", bt_test_source_open},
+	{"bt_test_source_close", bt_test_source_close},
+	{"bt_test_source_connect_by_addr", bt_test_source_connect_by_addr},
+	{"bt_test_source_disconnect_by_addr", bt_test_source_disconnect_by_addr},
+	{"bt_test_source_remove_by_addr", bt_test_source_remove_by_addr},
 	{"bt_test_sink_open", bt_test_sink_open},
 	{"bt_test_sink_visibility00", bt_test_sink_visibility00},
 	{"bt_test_sink_visibility01", bt_test_sink_visibility01},
@@ -219,6 +232,8 @@ static void show_help(char *bin_name) {
 static void deviceio_test_wifi_config()
 {
 	int i, item_cnt;
+	char *input_start;
+	char cmdBuf[64] = {0};
 	char szBuf[64] = {0};
 
 	item_cnt = sizeof(wifi_config_command_table) / sizeof(command_t);
@@ -230,9 +245,18 @@ static void deviceio_test_wifi_config()
 			continue;
 		}
 
-		i = atoi(szBuf);
-		if ((i >= 1) && (i < item_cnt))
-			wifi_config_command_table[i].action(NULL);
+		input_start = strstr(szBuf, "input");
+		if(input_start == NULL) {
+			i = atoi(szBuf);
+			if ((i >= 1) && (i < item_cnt))
+				wifi_config_command_table[i].action(NULL);
+		} else {
+			memset(cmdBuf, 0, sizeof(cmdBuf));
+			strncpy(cmdBuf, szBuf, strlen(szBuf) - strlen(input_start) - 1);
+			i = atoi(cmdBuf);
+			if ((i >= 1) && (i < item_cnt))
+				wifi_config_command_table[i].action(input_start + strlen("input") + 1);
+		}
 	}
 
 	return;

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-hcd_file="BTFIRMWARE_PATH"
+hcd_file=`grep brcm_patchram_plus1 /userdata/bt_pcba_test | cut -d ' ' -f 14`
 echo "hcd_file = $hcd_file"
 ttys_dev="BT_TTY_DEV"
 echo "ttys_dev = $ttys_dev"
@@ -28,6 +28,7 @@ case "$1" in
         ;;
     stop)
         echo "Stopping broadcom bsa bluetooth server"
+	killall brcm_patchram_plus1
         killall bsa_server
         check_not_exist.sh bsa_server
         echo 0 > /sys/class/rfkill/rfkill0/state

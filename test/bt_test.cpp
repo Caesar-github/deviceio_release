@@ -14,6 +14,7 @@
 #include <DeviceIo/RkBtHfp.h>
 #include <DeviceIo/RkBleClient.h>
 #include <DeviceIo/RkBtObex.h>
+#include <DeviceIo/RkBtPan.h>
 
 #include "bt_test.h"
 
@@ -145,13 +146,6 @@ static void bt_test_dev_found_cb(const char *address,const char *name, unsigned 
 	printf("    class: 0x%x\n", bt_class);
 	printf("    rssi: %d\n", rssi);
 	printf("+++++++++++++++++++++++++++++++++++++++++\n");
-
-#if 0
-	if(!strcmp(address, "88:2D:53:CC:DC:63")) {
-		printf("%s: connect 88:2D:53:CC:DC:63\n", __func__);
-		bt_test_source_connect_by_addr("88:2D:53:CC:DC:63");
-	}
-#endif
 }
 
 static void bt_test_name_change_cb(const char *bd_addr, const char *name)
@@ -170,7 +164,7 @@ void *bt_test_bluetooth_init_thread(void *)
 {
 	printf("%s: BT BLUETOOTH INIT\n", __func__);
 	memset(&bt_content, 0, sizeof(RkBtContent));
-	bt_content.bt_name = "ROCKCHIP_AUDIO";
+	bt_content.bt_name = "ROCKCHIP_TEST";
 	//bt_content.bt_addr = "11:22:33:44:55:66";
 
 	bt_content.ble_content.ble_name = "ROCKCHIP_AUDIO BLE";
@@ -473,6 +467,26 @@ void bt_test_start_discovery_le(char *data)
 	rk_bt_register_discovery_callback(bt_test_discovery_status_cb);
 	rk_bt_register_dev_found_callback(bt_test_dev_found_cb);
 	rk_bt_start_discovery(time, SCAN_TYPE_LE);
+}
+
+void bt_test_start_discovery_pan(char *data)
+{
+	int time;
+
+	if(data == NULL) {
+		printf("Please enter the scan time\n");
+		return;
+	}
+
+	time = atoi(data);
+	if(time < 10000) {
+		printf("Scan time is too short(%d), reset to 10000ms\n", time);
+		time = 10000;
+	}
+
+	rk_bt_register_discovery_callback(bt_test_discovery_status_cb);
+	rk_bt_register_dev_found_callback(bt_test_dev_found_cb);
+	rk_bt_start_discovery(time, SCAN_TYPE_PAN);
 }
 
 void bt_test_cancel_discovery(char *data)
@@ -1081,7 +1095,7 @@ void bt_test_ble_client_open(char *data)
 	rk_ble_client_register_state_callback(ble_client_test_state_callback);
 	rk_ble_client_register_recv_callback(bt_test_ble_client_recv_data_callback);
 	rk_ble_client_register_mtu_callback(bt_test_mtu_callback);
-	rk_ble_client_open();
+	rk_ble_client_open(true);
 }
 
 void bt_test_ble_client_close(char *data)
@@ -1789,11 +1803,37 @@ static void hfp_close_audio_duplex()
 	hfp_close_bt_duplex();
 }
 
+static void get_call_info(char *str)
+{
+	char *p1, *p2 = NULL;
+	char number[20];
+	char name[256];
+
+	if(!str)
+		return;
+
+	printf("Call info: %s\n", str);
+
+	p1 = strstr(str, "\"");
+	p2 = strstr(p1 + 1, "\"");
+	memset(number, 0, 20);
+	strncpy(number, p1 + 1, p2 - (p1 + 1));
+	printf("Call number: %s\n", number);
+
+	p1 = strstr(p2 + 1, "\"");
+	p2 = strstr(p1 + 1, "\"");
+	memset(name, 0, 20);
+	strncpy(name, p1 + 1, p2 - (p1 + 1));
+	printf("Call name: %s\n", name);
+}
+
 int bt_test_hfp_hp_cb(const char *bd_addr, RK_BT_HFP_EVENT event, void *data)
 {
 	switch(event) {
 		case  RK_BT_HFP_CONNECT_EVT:
 			printf("+++++ BT HFP HP CONNECT(%s) +++++\n", bd_addr);
+			printf("device platform is %s\n", rk_bt_get_dev_platform(bd_addr) == RK_BT_DEV_PLATFORM_UNKNOWN ?
+				"Unknown Platform" : "Apple IOS");
 			break;
 		case RK_BT_HFP_DISCONNECT_EVT:
 			printf("+++++ BT HFP HP DISCONNECT(%s) +++++\n", bd_addr);
@@ -1828,6 +1868,26 @@ int bt_test_hfp_hp_cb(const char *bd_addr, RK_BT_HFP_EVENT event, void *data)
 				(codec_type == BT_SCO_CODEC_MSBC) ? "mSBC":"CVSD");
 			sco_codec = (RK_BT_SCO_CODEC_TYPE)codec_type;
 			break;
+		}
+		case RK_BT_HFP_CLIP_EVT:
+		{
+			printf("+++++ BT HFP CLIP EVENT(%s) +++++\n", bd_addr);
+			get_call_info((char *)data);
+			break;
+		}
+
+		case RK_BT_HFP_OUTGOING_CALL_DIAL_EVT:
+			printf("+++++ BT HFP OUTGOING CALL DIAL EVT(%s) +++++\n", bd_addr);
+			break;
+
+		case RK_BT_HFP_OUTGOING_CALL_RING_EVT:
+			printf("+++++ BT HFP OUTGOING CALL RING EVT(%s) +++++\n", bd_addr);
+			break;
+
+		case RK_BT_HFP_CLCC_EVT:
+		{
+			printf("+++++ BT HFP CLCC EVENT(%s) +++++\n", bd_addr);
+			get_call_info((char *)data);
 		}
 		default:
 			break;
@@ -1967,12 +2027,12 @@ static void  obex_pbap_event_cb(const char *bd_addr, RK_BT_OBEX_STATE state)
 
 void bt_test_obex_init(char *data)
 {
-	rk_bt_obex_register_status_cb(obex_pbap_event_cb);
 	rk_bt_obex_init(data);
 }
 
 void bt_test_obex_pbap_init(char *data)
 {
+	rk_bt_obex_register_status_cb(obex_pbap_event_cb);
 	rk_bt_obex_pbap_init();
 }
 
@@ -2001,9 +2061,19 @@ void bt_test_obex_pbap_get_mch_vcf(char *data)
 	rk_bt_obex_pbap_get_vcf("mch", "/data/mch.vcf");
 }
 
+void bt_test_obex_pbap_get_spd_vcf(char *data)
+{
+	rk_bt_obex_pbap_get_vcf("spd", "/data/spd.vcf");
+}
+
+void bt_test_obex_pbap_get_fav_vcf(char *data)
+{
+	rk_bt_obex_pbap_get_vcf("fav", "/data/fav.vcf");
+}
+
 void bt_test_obex_pbap_disconnect(char *data)
 {
-	rk_bt_obex_pbap_disconnect(NULL);
+	rk_bt_obex_pbap_disconnect(data);
 }
 
 void bt_test_obex_pbap_deinit(char *data)
@@ -2014,4 +2084,45 @@ void bt_test_obex_pbap_deinit(char *data)
 void bt_test_obex_deinit(char *data)
 {
 	rk_bt_obex_deinit();
+}
+
+/******************************************/
+/*                 PAN                    */
+/******************************************/
+static void pan_event_cb(RK_BT_PAN_EVENT event, char *bd_addr)
+{
+	switch(event) {
+		case RK_BT_PAN_CONNECT_FAILED:
+			printf("----- RK_BT_PAN_CONNECT_FAILED(%s) -----\n", bd_addr);
+			break;
+
+		case RK_BT_PAN_CONNECT:
+			printf("----- RK_BT_PAN_CONNECT(%s) -----\n", bd_addr);
+			break;
+
+		case RK_BT_PAN_DISCONNECT:
+			printf("----- RK_BT_PAN_DISCONNECT(%s) -----\n", bd_addr);
+			break;
+	}
+}
+
+void bt_test_pan_init(char *data)
+{
+	rk_bt_pan_register_event_cb(pan_event_cb);
+	rk_bt_pan_open();
+}
+
+void bt_test_pan_deinit(char *data)
+{
+	rk_bt_pan_close();
+}
+
+void bt_test_pan_connect(char *data)
+{
+	rk_bt_pan_connect(data);
+}
+
+void bt_test_pan_disconnect(char *data)
+{
+	rk_bt_pan_disconnect(data);
 }

@@ -24,37 +24,6 @@ static void printf_system_time()
 	printf("--- time: %lld ms ---\n", tv.tv_sec * 1000 + tv.tv_usec/1000 + tv.tv_usec%1000);
 }
 
-static void ping_test()
-{
-	char line[2048];
-
-	while(1) {
-		sleep(1);
-#if 0
-		if (RK_wifi_ping("www.baidu.com")) {
-			printf("ping ok\n");
-			printf_system_time();
-			rk_wifi_getConnectionInfo(NULL);
-			break;
-		}
-#else
-		memset(line, 0, sizeof(line));
-		RK_shell_exec("ping www.baidu.com -c 1", line, sizeof(line));
-		//RK_shell_exec("ping 8.8.8.8 -c 1", line, sizeof(line));
-		//usleep(100000);
-		printf("line: %s\n", line);
-		if (strstr(line, "PING www.baidu.com") && strstr(line, "bytes from")) {
-		//if (strstr(line, "PING 8.8.8.8") && strstr(line, "bytes from")) {
-			printf("ping ok\n");
-			printf_system_time();
-			rk_wifi_getConnectionInfo(NULL);
-			break;
-		}
-#endif
-		usleep(100000);
-	}
-}
-
 static void printf_connect_info(RK_WIFI_INFO_Connection_s *info)
 {
 	if(!info)
@@ -82,7 +51,6 @@ static int rk_wifi_state_callback(RK_WIFI_RUNNING_State_e state, RK_WIFI_INFO_Co
 	wifi_state = state;
 	if (state == RK_WIFI_State_CONNECTED) {
 		printf("RK_WIFI_State_CONNECTED\n");
-		ping_test();
 	} else if (state == RK_WIFI_State_CONNECTFAILED) {
 		printf("RK_WIFI_State_CONNECTFAILED\n");
 	} else if (state == RK_WIFI_State_CONNECTFAILED_WRONG_KEY) {
@@ -134,8 +102,8 @@ void rk_wifi_airkiss_start(void *data)
 
 	printf("===== %s =====\n", __func__);
 
-	if(RK_wifi_airkiss_start(info.ssid, info.psk) < 0)
-		return;
+	//if(RK_wifi_airkiss_start(info.ssid, info.psk) < 0)
+	//	return;
 
 	wifi_state = 0;
 
@@ -151,7 +119,7 @@ void rk_wifi_airkiss_start(void *data)
 
 void rk_wifi_airkiss_stop(void *data)
 {
-	RK_wifi_airkiss_stop();
+	//RK_wifi_airkiss_stop();
 }
 
 /*****************************************************************

@@ -367,8 +367,6 @@ int main(int argc, char *argv[])
 	int i, item_cnt;
 	char version[64] = {0};
 
-	RK_read_version(version, 64);
-	std::cout << "version:" << version << std::endl;
 	item_cnt = sizeof(menu_command_table) / sizeof(menu_command_t);
 
 	if (argc < 2) {

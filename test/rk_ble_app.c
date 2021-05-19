@@ -227,8 +227,8 @@ scan_retry:
 			strcpy(wifi_ssid, ble_data->ssid); // str + 20);
 			strcpy(wifi_password, ble_data->psk); // str + 52);
 
-			RK_LOGD("[RK] wifi ssid is %s\n", wifi_ssid);
-			RK_LOGD("[RK] wifi psk is %s\n", wifi_password);
+			printf("[RK] wifi ssid is %s\n", wifi_ssid);
+			printf("[RK] wifi psk is %s\n", wifi_password);
 
 			strcpy(wifi_cfg.ssid, wifi_ssid);
 			strcpy(wifi_cfg.psk, wifi_password);

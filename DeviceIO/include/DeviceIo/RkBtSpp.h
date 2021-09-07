@@ -22,6 +22,9 @@ int rk_bt_spp_open(void);
 int rk_bt_spp_close(void);
 int rk_bt_spp_get_state(RK_BT_SPP_STATE *pState);
 int rk_bt_spp_write(char *data, int len);
+int rk_bt_spp_connect(char *address);
+int rk_bt_spp_disconnect(char *address);
+int rk_bt_spp_listen();
 
 #ifdef __cplusplus
 }

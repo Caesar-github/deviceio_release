@@ -81,6 +81,7 @@ static RK_BT_SCO_CODEC_TYPE sco_codec = BT_SCO_CODEC_CVSD;
 /******************************************/
 /*        BT base server init             */
 /******************************************/
+static volatile bool gonff = false;
 static void bt_test_state_cb(RK_BT_STATE state)
 {
 	switch(state) {
@@ -89,12 +90,14 @@ static void bt_test_state_cb(RK_BT_STATE state)
 			break;
 		case RK_BT_STATE_ON:
 			printf("++++++++++ RK_BT_STATE_ON ++++++++++\n");
+			gonff = true;
 			break;
 		case RK_BT_STATE_TURNING_OFF:
 			printf("++++++++++ RK_BT_STATE_TURNING_OFF ++++++++++\n");
 			break;
 		case RK_BT_STATE_OFF:
 			printf("++++++++++ RK_BT_STATE_OFF ++++++++++\n");
+			gonff = false;
 			break;
 	}
 }
@@ -159,8 +162,8 @@ static void bt_test_name_change_cb(const char *bd_addr, const char *name)
  * The Bluetooth basic service is turned on and the function
  * must be called before using the Bluetooth function.
  */
-#if 1
-void *bt_test_bluetooth_init_thread(void *)
+#if 0
+void *bt_test_bluetooth_init_thread(void *arg)
 {
 	printf("%s: BT BLUETOOTH INIT\n", __func__);
 	memset(&bt_content, 0, sizeof(RkBtContent));
@@ -209,7 +212,7 @@ void *bt_test_bluetooth_init_thread(void *)
 }
 #else
 //BLE_ADVDATA_TYPE_USER demo
-void *bt_test_bluetooth_init_thread(void *)
+void *bt_test_bluetooth_init_thread(void *arg)
 {
 	printf("%s: BT BLUETOOTH INIT\n", __func__);
 
@@ -304,6 +307,45 @@ void *bt_test_bluetooth_init_thread(void *)
 }
 
 #endif
+
+static int bt_onff_cnt = 0;
+void *bt_test_onff_thread(void *arg)
+{
+	while (1) {
+		bt_test_bluetooth_init_thread(NULL);
+		bt_test_source_open(NULL);
+		while (gonff == false) {
+			sleep(1);
+			printf("%s: BT BLUETOOTH TURNING ON ...\n", __func__);
+		}
+
+		printf("%s: BT BLUETOOTH DEINIT\n", __func__);
+		bt_test_source_close(NULL);
+		rk_bt_deinit();
+		while (gonff == true) {
+			sleep(1);
+			printf("%s: BT BLUETOOTH TURNING OFF ...\n", __func__);
+		}
+		printf("%s: BT BLUETOOTH TURN ONOFF CNT: [%d] \n", __func__, bt_onff_cnt++);
+	}
+}
+
+static pthread_t bt_init_onoff_thread = 0;
+void bt_test_bluetooth_onff_init(char *data)
+{
+	printf("%s: ", __func__);
+
+	if (bt_init_onoff_thread) {
+		printf("bt init thread already exist\n");
+		return;
+	}
+
+	if (pthread_create(&bt_init_onoff_thread, NULL, bt_test_onff_thread, NULL)) {
+		printf("Create bt init pthread failed\n");
+		return;
+	}
+}
+
 static pthread_t bt_init_thread = 0;
 void bt_test_bluetooth_init(char *data)
 {
@@ -491,6 +533,26 @@ void bt_test_start_discovery_pan(char *data)
 	rk_bt_register_discovery_callback(bt_test_discovery_status_cb);
 	rk_bt_register_dev_found_callback(bt_test_dev_found_cb);
 	rk_bt_start_discovery(time, SCAN_TYPE_PAN);
+}
+
+void bt_test_start_discovery_spp(char *data)
+{
+	int time;
+
+	if(data == NULL) {
+		printf("Please enter the scan time\n");
+		return;
+	}
+
+	time = atoi(data);
+	if(time < 10000) {
+		printf("Scan time is too short(%d), reset to 10000ms\n", time);
+		time = 10000;
+	}
+
+	rk_bt_register_discovery_callback(bt_test_discovery_status_cb);
+	rk_bt_register_dev_found_callback(bt_test_dev_found_cb);
+	rk_bt_start_discovery(time, SCAN_TYPE_SPP);
 }
 
 void bt_test_cancel_discovery(char *data)
@@ -889,6 +951,15 @@ void bt_test_source_disconnect(char *data)
 	rk_bt_source_disconnect();
 }
 
+void bt_test_source_set_vol(char *data)
+{
+	int vol;
+
+	vol = atoi(data);
+	printf("+++++ bt_test_source_set_vol: %s, %d +++++\n", data, vol);
+	rk_bt_source_set_vol(vol);
+}
+
 /******************************************/
 /*                  BLE                   */
 /******************************************/
@@ -939,6 +1010,8 @@ void *_send_data(void *data)
 	rk_ble_write(uuid, "wwww", 4);
 	usleep(100000);
 	rk_ble_write(uuid, "zzzz", 4);
+
+	return ((void *)0);
 }
 
 void send_data(char *uuid)
@@ -1023,7 +1096,8 @@ void bt_test_ble_write(char *data)
 		write_buf[i] = '0' + i % 10;
 	write_buf[write_len - 1] = '\0';
 
-	rk_ble_write(BLE_UUID_WIFI_CHAR, write_buf, write_len);
+	rk_ble_write(BLE_UUID_SEND, write_buf, write_len);
+	//rk_ble_write(BLE_UUID_WIFI_CHAR, write_buf, write_len);
 	free(write_buf);
 }
 
@@ -1212,10 +1286,20 @@ void bt_test_ble_client_is_notify(char *data)
 
 void bt_test_ble_client_notify_on(char *data)
 {
-	rk_ble_client_notify(data, true, true);
+	rk_ble_client_notify(data, false, true);
 }
 
 void bt_test_ble_client_notify_off(char *data)
+{
+	rk_ble_client_notify(data, false, false);
+}
+
+void bt_test_ble_client_indicate_on(char *data)
+{
+	rk_ble_client_notify(data, true, true);
+}
+
+void bt_test_ble_client_indicate_off(char *data)
 {
 	rk_ble_client_notify(data, true, false);
 }
@@ -1223,10 +1307,10 @@ void bt_test_ble_client_notify_off(char *data)
 void bt_test_ble_client_get_eir_data(char *data)
 {
 	char eir_data[300];
-	int i;
 
 	rk_ble_client_get_eir_data(data, eir_data, 300);
-#if 0
+#if 1
+	int i;
 	for(i = 0; i < 300; i++) {
 		printf("%02x ", eir_data[i]);
 		if((i != 0) && (i % 20 == 0))
@@ -1235,6 +1319,25 @@ void bt_test_ble_client_get_eir_data(char *data)
 	printf("\n");
 #endif
 }
+
+void bt_test_get_eir_data(char *data)
+{
+	char eir_data[300];
+	int len;
+
+	len = rk_bt_get_eir_data(data, eir_data, 300);
+#if 1
+	int i;
+	printf("\n");
+	for (i = 0; i < len; i++) {
+		if((i != 0) && (i % 16 == 0))
+			printf("\n");
+		printf("%02x ", eir_data[i]);
+	}
+	printf("\n");
+#endif
+}
+
 /******************************************/
 /*                  SPP                   */
 /******************************************/
@@ -1277,10 +1380,24 @@ void bt_test_spp_write(char *data)
 	char buff[100] = {"This is a message from rockchip board!"};
 
 	ret = rk_bt_spp_write(buff, strlen(buff));
-	if (ret != strlen(buff)) {
-		printf("%s failed, ret<%d> != strlen(buff)<%d>\n",
-				__func__, ret, strlen(buff));
+	if (ret < 0) {
+		printf("%s failed\n", __func__);
 	}
+}
+
+void bt_test_spp_connect(char *data)
+{
+	rk_bt_spp_connect(data);
+}
+
+void bt_test_spp_disconnect(char *data)
+{
+	rk_bt_spp_disconnect(data);
+}
+
+void bt_test_spp_listen(char *data)
+{
+    rk_bt_spp_listen();
 }
 
 void bt_test_spp_close(char *data)
@@ -1809,25 +1926,37 @@ static void hfp_close_audio_duplex()
 
 static void get_call_info(char *str)
 {
-	char *p1, *p2 = NULL;
 	char number[20];
 	char name[256];
+	int  i = 0;
+	char *p0=str;
+	char *p1=number;
+	char *p2=name;
 
 	if(!str)
 		return;
 
+	while(*p0!='\0')
+	{
+
+		if(*p0=='\"')
+		i++;
+		if(i==1)
+		{
+			if(*p0!='\"')
+			{*p1=*p0;p1++;}
+		}
+		if(i==3)
+		{
+			if(*p0!='\"')
+			{*p2=*p0;p2++;}
+		}
+		p0++;
+	}
 	printf("Call info: %s\n", str);
-
-	p1 = strstr(str, "\"");
-	p2 = strstr(p1 + 1, "\"");
-	memset(number, 0, 20);
-	strncpy(number, p1 + 1, p2 - (p1 + 1));
+	if(i>0)
 	printf("Call number: %s\n", number);
-
-	p1 = strstr(p2 + 1, "\"");
-	p2 = strstr(p1 + 1, "\"");
-	memset(name, 0, 20);
-	strncpy(name, p1 + 1, p2 - (p1 + 1));
+	if(i>2)
 	printf("Call name: %s\n", name);
 }
 
@@ -1836,7 +1965,7 @@ int bt_test_hfp_hp_cb(const char *bd_addr, RK_BT_HFP_EVENT event, void *data)
 	switch(event) {
 		case  RK_BT_HFP_CONNECT_EVT:
 			printf("+++++ BT HFP HP CONNECT(%s) +++++\n", bd_addr);
-			printf("device platform is %s\n", rk_bt_get_dev_platform(bd_addr) == RK_BT_DEV_PLATFORM_UNKNOWN ?
+			printf("device platform is %s\n", rk_bt_get_dev_platform((char *)bd_addr) == RK_BT_DEV_PLATFORM_UNKNOWN ?
 				"Unknown Platform" : "Apple IOS");
 			break;
 		case RK_BT_HFP_DISCONNECT_EVT:

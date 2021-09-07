@@ -7,8 +7,8 @@ extern "C" {
 
 
 int RK_encode_is_utf8(char *buffer, const int size);
-int RK_encode_gbk_to_utf8(const unsigned char* src, int len, unsigned char* dst);
-int RK_encode_utf8_to_gbk(const unsigned char* src, int len, unsigned char* dst);
+int RK_encode_gbk_to_utf8(unsigned char* src, int len, unsigned char* dst);
+int RK_encode_utf8_to_gbk(unsigned char* src, int len, unsigned char* dst);
 
 
 #ifdef __cplusplus

@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <sys/prctl.h>
 #include <sys/time.h>
+#include <stdbool.h>
 
 #include "DeviceIo/Rk_wifi.h"
 #include "DeviceIo/Rk_softap.h"
@@ -22,6 +23,37 @@ static void printf_system_time()
 	gettimeofday(&tv, NULL);
 
 	printf("--- time: %lld ms ---\n", tv.tv_sec * 1000 + tv.tv_usec/1000 + tv.tv_usec%1000);
+}
+
+static void ping_test()
+{
+	char line[2048];
+
+	while(1) {
+		sleep(1);
+#if 0
+		if (RK_wifi_ping("www.baidu.com")) {
+			printf("ping ok\n");
+			printf_system_time();
+			rk_wifi_getConnectionInfo(NULL);
+			break;
+		}
+//#else
+		memset(line, 0, sizeof(line));
+		RK_shell_exec("ping www.baidu.com -c 1", line, sizeof(line));
+		//RK_shell_exec("ping 8.8.8.8 -c 1", line, sizeof(line));
+		//usleep(100000);
+		printf("line: %s\n", line);
+		if (strstr(line, "PING www.baidu.com") && strstr(line, "bytes from")) {
+		//if (strstr(line, "PING 8.8.8.8") && strstr(line, "bytes from")) {
+			printf("ping ok\n");
+			printf_system_time();
+			rk_wifi_getConnectionInfo(NULL);
+			break;
+		}
+#endif
+		usleep(100000);
+	}
 }
 
 static void printf_connect_info(RK_WIFI_INFO_Connection_s *info)
@@ -42,6 +74,7 @@ static void printf_connect_info(RK_WIFI_INFO_Connection_s *info)
 /*****************************************************************
  *                     wifi config                               *
  *****************************************************************/
+static volatile bool rkwifi_gonff = false;
 static RK_WIFI_RUNNING_State_e wifi_state = 0;
 static int rk_wifi_state_callback(RK_WIFI_RUNNING_State_e state, RK_WIFI_INFO_Connection_s *info)
 {
@@ -51,13 +84,17 @@ static int rk_wifi_state_callback(RK_WIFI_RUNNING_State_e state, RK_WIFI_INFO_Co
 	wifi_state = state;
 	if (state == RK_WIFI_State_CONNECTED) {
 		printf("RK_WIFI_State_CONNECTED\n");
+		//ping_test();
+		//RK_wifi_get_connected_ap_rssi();
 	} else if (state == RK_WIFI_State_CONNECTFAILED) {
 		printf("RK_WIFI_State_CONNECTFAILED\n");
 	} else if (state == RK_WIFI_State_CONNECTFAILED_WRONG_KEY) {
 		printf("RK_WIFI_State_CONNECTFAILED_WRONG_KEY\n");
 	} else if (state == RK_WIFI_State_OPEN) {
+		rkwifi_gonff = true;
 		printf("RK_WIFI_State_OPEN\n");
 	} else if (state == RK_WIFI_State_OFF) {
+		rkwifi_gonff = false;
 		printf("RK_WIFI_State_OFF\n");
 	} else if (state == RK_WIFI_State_DISCONNECTED) {
 		printf("RK_WIFI_State_DISCONNECTED\n");
@@ -65,7 +102,9 @@ static int rk_wifi_state_callback(RK_WIFI_RUNNING_State_e state, RK_WIFI_INFO_Co
 		char *scan_r;
 		printf("RK_WIFI_State_SCAN_RESULTS\n");
 		scan_r = RK_wifi_scan_r();
+		//system("cat /tmp/scan_r.tmp");
 		//printf("%s\n", scan_r);
+		free(scan_r);
 	}
 
 	return 0;
@@ -160,7 +199,7 @@ void rk_wifi_softap_stop(void *data)
 	RK_softap_stop();
 }
 
-void rk_wifi_open(void *data)
+void _rk_wifi_open(void *data)
 {
 	RK_wifi_register_callback(rk_wifi_state_callback);
 
@@ -172,6 +211,62 @@ void rk_wifi_close(void *data)
 {
 	if (RK_wifi_enable(0) < 0)
 		printf("RK_wifi_enable 0 fail!\n");
+}
+
+static int wifi_cnt = 0;
+void *wifi_test_onff_thread(void *arg)
+{
+	while (1) {
+		//open
+		RK_wifi_register_callback(rk_wifi_state_callback);
+		if (RK_wifi_enable(1) < 0)
+			printf("RK_wifi_enable 1 fail!\n");
+
+		while (rkwifi_gonff == false) {
+			sleep(1);
+			printf("%s: RKWIFI TURNING ON ...\n", __func__);
+		}
+
+		//scan
+		RK_wifi_scan();
+		sleep(1);
+
+		//close
+		printf("%s: RKWIFI DEINIT\n", __func__);
+		if (RK_wifi_enable(0) < 0)
+			printf("RK_wifi_enable 0 fail!\n");
+
+		while (rkwifi_gonff == true) {
+			sleep(1);
+			printf("%s: RKWIFI TURNING OFF ...\n", __func__);
+		}
+		printf("%s: RKWIFI TURN ONOFF CNT: [%d] \n", __func__, wifi_cnt++);
+	}
+}
+
+static pthread_t rkwifi_init_thread = 0;
+void rk_wifi_openoff_test(char *data)
+{
+	printf("%s: ", __func__);
+
+	if (rkwifi_init_thread) {
+		printf("rkwifi_init_thread already exist\n");
+		return;
+	}
+
+	if (pthread_create(&rkwifi_init_thread, NULL, wifi_test_onff_thread, NULL)) {
+		printf("Createrkwifi_init_thread failed\n");
+		return;
+	}
+}
+
+void rk_wifi_open(char *data)
+{
+	printf("%s: ", __func__);
+
+	RK_wifi_register_callback(rk_wifi_state_callback);
+	if (RK_wifi_enable(1) < 0)
+		printf("RK_wifi_enable 1 fail!\n");
 }
 
 //9 input fish1:rk12345678
@@ -228,17 +323,19 @@ void rk_wifi_scan(void *data)
 
 void rk_wifi_getSavedInfo(void *data)
 {
-	RK_WIFI_SAVED_INFO wsi;
+	RK_WIFI_SAVED_INFO_s *wsi;
+	int ap_cnt = 0;
 
-	RK_wifi_getSavedInfo(&wsi);
-	for (int i = 0; i < wsi.count; i++) {
+	RK_wifi_getSavedInfo(&wsi, &ap_cnt);
+	for (int i = 0; i < ap_cnt; i++) {
 		printf("id: %d, name: %s, bssid: %s, state: %s\n",
-					wsi.save_info[i].id,
-					wsi.save_info[i].ssid,
-					wsi.save_info[i].bssid,
-					wsi.save_info[i].state);
-
+					wsi[i].id,
+					wsi[i].ssid,
+					wsi[i].bssid,
+					wsi[i].state);
 	}
+
+	free(wsi);
 }
 
 void rk_wifi_getConnectionInfo(void *data)

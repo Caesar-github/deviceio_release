@@ -10,6 +10,7 @@ extern "C" {
 /******************************************/
 void bt_test_bluetooth_init(char *data);
 void bt_test_bluetooth_deinit(char *data);
+void bt_test_bluetooth_onff_init(char *data);
 
 void bt_test_set_class(char *data);
 void bt_test_enable_reconnect(char *data);
@@ -32,6 +33,7 @@ void bt_test_display_paired_devices(char *data);
 void bt_test_get_scaned_devices(char *data);
 void bt_test_get_connected_properties(char *data);
 void bt_test_read_remote_device_name(char *data);
+void bt_test_get_eir_data(char *data);
 
 /******************************************/
 /*               BLE Test                 */
@@ -60,6 +62,8 @@ void bt_test_ble_client_write(char *data);
 void bt_test_ble_client_is_notify(char *data);
 void bt_test_ble_client_notify_on(char *data);
 void bt_test_ble_client_notify_off(char *data);
+void bt_test_ble_client_indicate_on(char *data);
+void bt_test_ble_client_indicate_off(char *data);
 void bt_test_ble_client_get_eir_data(char *data);
 
 /******************************************/
@@ -104,6 +108,10 @@ void bt_test_spp_open(char *data);
 void bt_test_spp_write(char *data);
 void bt_test_spp_close(char *data);
 void bt_test_spp_status(char *data);
+void bt_test_spp_connect(char *data);
+void bt_test_spp_disconnect(char *data);
+void bt_test_spp_listen(char *data);
+void bt_test_start_discovery_spp(char *data);
 
 /******************************************/
 /*              HFP Test                  */

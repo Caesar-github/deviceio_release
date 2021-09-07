@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define MXA_ADV_DATA_LEN 32
 #define DEVICE_ADDR_LEN  6
 
@@ -62,7 +58,8 @@ typedef enum {
 	SCAN_TYPE_AUTO, //LE, BR/EDR, or both
 	SCAN_TYPE_BREDR,
 	SCAN_TYPE_LE,
-	SCAN_TYPE_PAN
+	SCAN_TYPE_PAN,
+	SCAN_TYPE_SPP
 } RK_BT_SCAN_TYPE;
 
 /*BT discovery state*/
@@ -145,6 +142,7 @@ int rk_bt_set_visibility(const int visiable, const int connectable);
 bool rk_bt_get_connected_properties(char *addr);
 RK_BT_PLAYROLE_TYPE rk_bt_get_playrole_by_addr(char *addr);
 RK_BT_DEV_PLATFORM_TYPE rk_bt_get_dev_platform(char *addr);
+int rk_bt_get_eir_data(char *address, char *eir_data, int len);
 
 //for bsa, default /usr/bin/bsa_server.sh
 void rk_bt_set_bsa_server_path(char *path);
@@ -152,9 +150,5 @@ void rk_bt_set_bsa_server_path(char *path);
 //for bsa, bluez don't support
 //0: TRANSPORT_UNKNOWN, 1: TRANSPORT_BR_EDR, 2: TRANSPORT_LE
 int rk_bt_read_remote_device_name(char *addr, int transport);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __BT_BASE_H__ */

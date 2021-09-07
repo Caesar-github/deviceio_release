@@ -17,13 +17,13 @@
 #include <string.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-#include <iostream>
 #include <sys/select.h>
 #include <linux/input.h>
 #include <linux/rtc.h>
-#include <DeviceIo/Rk_system.h>
 
 #include "bt_test.h"
 #include "bt_test_1s2.h"
@@ -50,6 +50,9 @@ static menu_command_t menu_command_table[] = {
 	{"wificonfig", "show wifi config test cmd menu", deviceio_test_wifi_config},
 };
 
+static void show_bt_cmd();
+static void show_wifi_config_cmd();
+
 typedef struct {
 	const char *cmd;
 	void (*action)(void *data);
@@ -64,11 +67,10 @@ static command_t wifi_config_command_table[] = {
 	{"", NULL},
 	{"ble_wifi_config_start", rk_ble_wifi_init},
 	{"ble_wifi_config_stop", rk_ble_wifi_deinit},
-	{"airkiss_wifi_config_start", rk_wifi_airkiss_start},
-	{"airkiss_wifi_config_stop", rk_wifi_airkiss_stop},
 	{"softap_wifi_config_start", rk_wifi_softap_start},
 	{"softap_wifi_config_stop", rk_wifi_softap_stop},
 	{"wifi_open", rk_wifi_open},
+	{"wifi_onoff_test", rk_wifi_openoff_test},
 	{"wifi_close", rk_wifi_close},
 	{"wifi_connect", rk_wifi_connect},
 	{"wifi_ping", rk_wifi_ping},
@@ -85,6 +87,7 @@ static command_t wifi_config_command_table[] = {
 static command_bt_t bt_command_table[] = {
 	{"", NULL},
 	{"bt_server_open", bt_test_bluetooth_init},
+	{"bt_onoff_test", bt_test_bluetooth_onff_init},
 	{"bt_test_set_class", bt_test_set_class},
 	{"bt_test_get_device_name", bt_test_get_device_name},
 	{"bt_test_get_device_addr", bt_test_get_device_addr},
@@ -153,11 +156,17 @@ static command_bt_t bt_command_table[] = {
 	{"bt_test_ble_client_is_notify", bt_test_ble_client_is_notify},
 	{"bt_test_ble_client_notify_on", bt_test_ble_client_notify_on},
 	{"bt_test_ble_client_notify_off", bt_test_ble_client_notify_off},
+	{"bt_test_ble_client_indicate_on", bt_test_ble_client_indicate_on},
+	{"bt_test_ble_client_indicate_off", bt_test_ble_client_indicate_off},
 	{"bt_test_ble_client_get_eir_data", bt_test_ble_client_get_eir_data},
 	{"bt_test_spp_open", bt_test_spp_open},
 	{"bt_test_spp_write", bt_test_spp_write},
 	{"bt_test_spp_close", bt_test_spp_close},
 	{"bt_test_spp_status", bt_test_spp_status},
+	{"bt_test_spp_listen", bt_test_spp_listen},
+	{"bt_test_spp_connect", bt_test_spp_connect},
+	{"bt_test_spp_disconnect", bt_test_spp_disconnect},
+	{"bt_test_start_discovery_spp", bt_test_start_discovery_spp},
 	{"bt_test_hfp_sink_open", bt_test_hfp_sink_open},
 	{"bt_test_hfp_hp_open", bt_test_hfp_hp_open},
 	{"bt_test_hfp_hp_accept", bt_test_hfp_hp_accept},
@@ -184,6 +193,7 @@ static command_bt_t bt_command_table[] = {
 	{"bt_test_pan_deinit", bt_test_pan_deinit},
 	{"bt_test_pan_connect", bt_test_pan_connect},
 	{"bt_test_pan_disconnect", bt_test_pan_disconnect},
+	{"bt_test_get_eir_data", bt_test_get_eir_data},
 	{"bt_server_close", bt_test_bluetooth_deinit},
 };
 
@@ -223,20 +233,16 @@ static command_bt_t btmg_1s2_command_table[] = {
 
 static void show_wifi_config_cmd() {
 	unsigned int i;
-	printf("#### Please Input Your Test Command Index ####\n");
 	for (i = 1; i < sizeof(wifi_config_command_table) / sizeof(wifi_config_command_table[0]); i++) {
 		printf("%02d.  %s \n", i, wifi_config_command_table[i].cmd);
 	}
-	printf("Which would you like: ");
 }
 
 static void show_bt_cmd() {
 	unsigned int i;
-	printf("#### Please Input Your Test Command Index ####\n");
 	for (i = 1; i < sizeof(bt_command_table) / sizeof(bt_command_table[0]); i++) {
 		printf("%02d.  %s \n", i, bt_command_table[i].cmd);
 	}
-	printf("Which would you like: ");
 }
 
 #ifdef BLUEZ_USE
@@ -263,15 +269,23 @@ static void deviceio_test_wifi_config()
 	char *input_start;
 	char cmdBuf[64] = {0};
 	char szBuf[64] = {0};
+	char szBuf_space[64] = {0};
 
 	item_cnt = sizeof(wifi_config_command_table) / sizeof(command_t);
+	show_wifi_config_cmd();
+
 	while(true) {
+		printf("Please input number or help to run: ");
+
 		memset(szBuf, 0, sizeof(szBuf));
-		show_wifi_config_cmd();
-		if(!std::cin.getline(szBuf, 64)) {
-			std::cout << "error" << std::endl;
+		if (fgets(szBuf_space, 64, stdin) == NULL)
 			continue;
-		}
+
+		if (!strncmp("help", szBuf_space, 4) || !strncmp("h", szBuf_space, 1))
+			show_wifi_config_cmd();
+
+		//printf("szBuf_space: %s:len\n", szBuf_space, sizeof(szBuf_space));
+		strncpy(szBuf, szBuf_space, strlen(szBuf_space) - 1);
 
 		input_start = strstr(szBuf, "input");
 		if(input_start == NULL) {
@@ -282,6 +296,7 @@ static void deviceio_test_wifi_config()
 			memset(cmdBuf, 0, sizeof(cmdBuf));
 			strncpy(cmdBuf, szBuf, strlen(szBuf) - strlen(input_start) - 1);
 			i = atoi(cmdBuf);
+			printf("%s: i = %d\n", __func__, i);
 			if ((i >= 1) && (i < item_cnt))
 				wifi_config_command_table[i].action(input_start + strlen("input") + 1);
 		}
@@ -296,27 +311,34 @@ static void deviceio_test_bluetooth()
 	char *input_start;
 	char cmdBuf[64] = {0};
 	char szBuf[64] = {0};
+	char szBuf_space[64] = {0};
 
 	item_cnt = sizeof(bt_command_table) / sizeof(command_bt_t);
+	show_bt_cmd();
+
 	while(true) {
 		memset(szBuf, 0, sizeof(szBuf));
-		show_bt_cmd();
-		if(!std::cin.getline(szBuf, 64)) {
-			std::cout << "error" << std::endl;
-			continue;
-		}
+		printf("Please input number or help to run: ");
 
-		printf("%s: szBuf =  %s\n", __func__, szBuf);
+		if (fgets(szBuf_space, 64, stdin) == NULL)
+			continue;
+
+		if (!strncmp("help", szBuf_space, 4) || !strncmp("h", szBuf_space, 1))
+			show_bt_cmd();
+
+		///printf("szBuf_space: %s:len\n", szBuf_space, sizeof(szBuf_space));
+		strncpy(szBuf, szBuf_space, strlen(szBuf_space) - 1);
+
 		input_start = strstr(szBuf, "input");
 		if(input_start == NULL) {
 			i = atoi(szBuf);
-			printf("%s: selset %d\n", __func__, i);
+			//printf("%s: select %d\n", __func__, i);
 			if ((i >= 1) && (i < item_cnt))
 				bt_command_table[i].action(NULL);
 		} else {
 			memset(cmdBuf, 0, sizeof(cmdBuf));
 			strncpy(cmdBuf, szBuf, strlen(szBuf) - strlen(input_start) - 1);
-			printf("%s: cmdBuf = %s\n", __func__, cmdBuf);
+			//printf("%s: cmdBuf = %s\n", __func__, cmdBuf);
 			i = atoi(cmdBuf);
 			printf("%s: i = %d\n", __func__, i);
 			if ((i >= 1) && (i < item_cnt))
@@ -339,10 +361,8 @@ static void deviceio_test_bluetooth_1s2()
 	while(true) {
 		memset(szBuf, 0, sizeof(szBuf));
 		show_bt_1s2_cmd();
-		if(!std::cin.getline(szBuf, 64)) {
-			std::cout << "error" << std::endl;
+		if (fgets(szBuf, 64, stdin) == NULL)
 			continue;
-		}
 
 		input_start = strstr(szBuf, "input");
 		if(input_start == NULL) {
@@ -367,6 +387,7 @@ int main(int argc, char *argv[])
 	int i, item_cnt;
 	char version[64] = {0};
 
+	//RK_read_version(version, 64);
 	item_cnt = sizeof(menu_command_table) / sizeof(menu_command_t);
 
 	if (argc < 2) {

@@ -71,6 +71,7 @@ int rk_bt_source_stop(void);
 int rk_bt_source_pause(void);
 int rk_bt_source_vol_up(void);
 int rk_bt_source_vol_down(void);
+int rk_bt_source_set_vol(int vol);
 
 #ifdef __cplusplus
 }

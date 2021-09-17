@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MXA_ADV_DATA_LEN 32
 #define DEVICE_ADDR_LEN  6
 
@@ -150,5 +154,9 @@ void rk_bt_set_bsa_server_path(char *path);
 //for bsa, bluez don't support
 //0: TRANSPORT_UNKNOWN, 1: TRANSPORT_BR_EDR, 2: TRANSPORT_LE
 int rk_bt_read_remote_device_name(char *addr, int transport);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __BT_BASE_H__ */

@@ -6,6 +6,7 @@ set(SRC_FILES
     bt_test_1s2.c
     rk_ble_app.c
     rk_wifi_test.c
+    softap/softap.c
 )
 
 if(BLUEZ)

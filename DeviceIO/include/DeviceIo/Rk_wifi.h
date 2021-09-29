@@ -60,8 +60,6 @@ typedef int(*RK_wifi_state_callback)(RK_WIFI_RUNNING_State_e state, RK_WIFI_INFO
 int RK_wifi_register_callback(RK_wifi_state_callback cb);
 int RK_wifi_running_getState(RK_WIFI_RUNNING_State_e* pState);
 int RK_wifi_running_getConnectionInfo(RK_WIFI_INFO_Connection_s* pInfo);
-int RK_wifi_enable_ap(char* ssid, const char* psk, const char* ip);
-int RK_wifi_disable_ap();
 int RK_wifi_enable(int enable);
 int RK_wifi_scan(void);
 char* RK_wifi_scan_r(void);
@@ -84,6 +82,7 @@ int RK_wifi_getSavedInfo(RK_WIFI_SAVED_INFO_s **pInfo, int *ap_cnt);
 int RK_wifi_connect_with_ssid(char* ssid);
 int RK_wifi_reset(void);
 int RK_wifi_get_connected_ap_rssi(void);
+char *RK_wifi_scan_for_softap(void);
 
 #ifdef __cplusplus
 }
